@@ -1,10 +1,11 @@
 # Architecture — Private LLM Host
 
 Companion to `PLAN.md` (phase-level roadmap/status) and `TASKS.md`
-(granular task checklist). This file is the structural reference: hardware,
-model, every component, what it runs on, how things connect, which
-protocol/port/auth applies at each hop, and why each choice was made —
-written so it can be sketched directly into a diagram.
+(granular task checklist). This file is the text reference for hardware,
+model, every component, how things connect, and why each choice was made.
+Visual diagrams are being sketched separately (Claude Design) rather than
+maintained here — this file just needs to carry enough detail for that
+sketch to be accurate.
 
 Last updated: 2026-08-16
 
@@ -51,7 +52,7 @@ Released 2026-08-13/14 (Apache 2.0). Key facts relevant to this build:
 | BF16 | ~56GB | Doesn't fit on one 32GB card |
 | FP8 | ~28GB | Fits, tight headroom for KV cache/context |
 | NVFP4 | ~24.6GB | Blackwell-native 4-bit; official vLLM recipe validated on this exact GPU generation; leaves the most headroom for long context |
-| GGUF (4-bit, llama.cpp path) | ~14–17GB | Not the current plan (see §3.1), noted as a fallback option |
+| GGUF (4-bit, llama.cpp path) | ~14–17GB | Not the current plan (see §5.3), noted as a fallback option |
 
 **Recommended starting precision: NVFP4.** There's an official vLLM
 deployment recipe for Qwen3.8-27B at NVFP4 specifically targeting Blackwell
@@ -62,46 +63,14 @@ exotic quantization format; FP8 is more broadly battle-tested).
 
 ---
 
-## 3. System diagram (full remote path)
+## 3. Components overview
 
-```mermaid
-flowchart TB
-    subgraph LAPTOP["Laptop (anywhere, untrusted network)"]
-        AGENT["Agent extension\n(Continue / Cline / Roo / OpenCode)\nin VS Code"]
-    end
-
-    subgraph EDGE["Cloudflare edge (public internet)"]
-        ACCESS["Cloudflare Access\nZero Trust auth gate"]
-        TUNNEL_EDGE["Cloudflare Tunnel edge"]
-    end
-
-    subgraph DESKTOP["Desktop — Ubuntu, home network (trusted)"]
-        CLOUDFLARED["cloudflared\n(outbound-only tunnel daemon)"]
-        PROXY["Reverse proxy — Caddy (tentative)\nTLS termination, API-key check, logging"]
-        VLLM["vLLM server\n(systemd service, :8000)\nOpenAI-compatible API"]
-        GPU["RTX 5090 32GB VRAM\nQwen3.8-27B resident (NVFP4)"]
-    end
-
-    AGENT -- "HTTPS request\n(Cloudflare Access service-token headers)" --> ACCESS
-    ACCESS -- "reject if unauthenticated" -.-> AGENT
-    ACCESS -- "authenticated request" --> TUNNEL_EDGE
-    TUNNEL_EDGE -- "outbound tunnel\n(cloudflared-initiated, no inbound port)" --> CLOUDFLARED
-    CLOUDFLARED -- "localhost HTTP" --> PROXY
-    PROXY -- "API-key checked HTTP" --> VLLM
-    VLLM <-- "inference" --> GPU
-    VLLM -- "streamed response" --> PROXY --> CLOUDFLARED --> TUNNEL_EDGE --> ACCESS --> AGENT
-```
-
-Local-desktop shortcut: when working directly on the desktop, the agent
-extension can point at `localhost:8000` (or the proxy port) directly,
-bypassing Cloudflare Access/Tunnel entirely (steps 2–3 of the remote flow).
-
-```mermaid
-flowchart LR
-    AGENT_LOCAL["Agent extension\n(on desktop)"] -- "HTTP, localhost" --> PROXY_LOCAL["Reverse proxy\n(or vLLM directly)"] --> VLLM_LOCAL["vLLM :8000"] --> GPU_LOCAL["RTX 5090"]
-```
-
----
+Three independent layers, chained together: model serving (vLLM on the
+GPU), network & auth (Cloudflare Tunnel + Access, plus an optional reverse
+proxy), and client tooling (an existing OpenAI-compatible agent extension).
+A fourth cross-cutting concern — power management — determines whether the
+chain is even reachable at any given time. Full detail per component is in
+§5; the connection order and trust boundaries are described in §6–7.
 
 ## 4. Component inventory
 
@@ -118,8 +87,6 @@ flowchart LR
 | 9 | Client / agent extension | Continue / Cline / Roo Code / OpenCode (not yet chosen) | Laptop or desktop, inside VS Code | — | HTTPS (remote) or HTTP (local) | Configured with base URL + auth headers |
 | 10 | Power/availability policy | Sleep disabled (v1 default); WoL considered later | Desktop OS | — | — | Desktop must be awake for the whole chain to work |
 
----
-
 ## 5. Component details
 
 ### 5.1 GPU + model (Qwen3.8-27B)
@@ -132,8 +99,7 @@ flowchart LR
   linear-attention layers) keeps KV cache growth sub-quadratic — relevant
   to how much context headroom is actually available in practice.
 - Built-in MTP draft head enables speculative decoding inside vLLM — a
-  performance detail, not a separate component, but worth noting on a
-  diagram as "vLLM + MTP" rather than plain vLLM.
+  performance detail, not a separate component.
 
 ### 5.2 vLLM (model serving layer)
 - Single systemd service on the desktop. Starts on boot, restarts on
@@ -191,72 +157,48 @@ flowchart LR
   running.
 - v1 default: disable system sleep (display sleep only). Wake-on-LAN is a
   later option if idle power draw becomes a concern — would add a "WoL
-  trigger" component (router support or an always-on LAN device) to this
-  diagram if adopted.
+  trigger" component (router support or an always-on LAN device) if
+  adopted.
 
 ---
 
-## 6. Trust / security boundary diagram
+## 6. Connections & trust boundaries
 
-```mermaid
-flowchart TB
-    subgraph Untrusted["Untrusted — public internet"]
-        LAPTOP2["Laptop / agent extension"]
-    end
-    subgraph CFEdge["Cloudflare edge — auth boundary"]
-        direction TB
-        ACCESS2["Cloudflare Access\n(service token / SSO check)"]
-        TUNNEL2["Tunnel routing"]
-    end
-    subgraph Home["Home network — trusted, no inbound ports open"]
-        subgraph DesktopBox["Desktop"]
-            CFD2["cloudflared (outbound only)"]
-            PROXY2["Proxy: API-key check"]
-            VLLM2["vLLM (localhost-bound)"]
-        end
-    end
+Three trust zones, in order from least to most trusted:
 
-    LAPTOP2 -->|"1. HTTPS + service token"| ACCESS2
-    ACCESS2 -->|"2. authenticated only"| TUNNEL2
-    TUNNEL2 -->|"3. outbound tunnel"| CFD2
-    CFD2 --> PROXY2
-    PROXY2 -->|"4. origin API key check"| VLLM2
-```
+1. **Public internet** (laptop, anywhere) — the agent extension originates
+   requests here. Nothing about this zone is trusted.
+2. **Cloudflare's edge** — the request first hits Cloudflare Access, which
+   checks the service-token headers (or SSO/OTP for interactive use) and
+   rejects unauthenticated traffic outright. Only authenticated requests
+   are handed to Cloudflare Tunnel routing.
+3. **Home network / desktop** — `cloudflared` receives the tunneled
+   request over its outbound-only connection (no inbound port is ever
+   opened on the router or desktop firewall). It hands off to the reverse
+   proxy, which performs a second check — the origin API key — before
+   forwarding to vLLM, which is itself bound to localhost only.
 
-Two independent auth checks before a request reaches the model: Cloudflare
-Access at the edge (step 2), and the origin API key at the proxy (step 4).
-Neither the router nor the desktop firewall has any inbound port open — the
-only network-facing surface is Cloudflare's own edge.
+Two independent auth checks sit between the public internet and the model:
+Cloudflare Access at the edge, and the origin API key at the proxy. The
+only network-facing surface anywhere in the system is Cloudflare's own
+edge — the home network never accepts inbound connections.
 
----
+When working directly on the desktop, the client can bypass zones 1–2
+entirely and talk to `localhost:8000` (or the proxy port) directly.
 
-## 7. Request sequence (remote case)
+## 7. Request flow (remote case)
 
-```mermaid
-sequenceDiagram
-    participant A as Agent extension (laptop)
-    participant CA as Cloudflare Access
-    participant CT as Cloudflare Tunnel
-    participant CD as cloudflared (desktop)
-    participant P as Reverse proxy
-    participant V as vLLM
-    participant G as RTX 5090 (Qwen3.8-27B)
-
-    A->>CA: HTTPS request + service-token headers
-    CA-->>A: 403 if unauthenticated (request stops here)
-    CA->>CT: forward if authenticated
-    CT->>CD: route through outbound tunnel
-    CD->>P: localhost HTTP
-    P->>P: check origin API key
-    P->>V: forward request
-    V->>G: run inference (prefix cache + speculative decoding)
-    G-->>V: generated tokens
-    V-->>P: streamed response
-    P-->>CD: streamed response
-    CD-->>CT: streamed response
-    CT-->>CA: streamed response
-    CA-->>A: streamed response
-```
+1. Agent extension (laptop, anywhere) sends a request to the Cloudflare
+   tunnel hostname over HTTPS, with service-token headers attached.
+2. Cloudflare Access checks the service-token headers; rejects
+   unauthenticated traffic at the edge.
+3. Cloudflare Tunnel routes the authenticated request through the
+   outbound tunnel to `cloudflared` on the desktop.
+4. `cloudflared` hands off to the local reverse proxy, which checks the
+   origin API key.
+5. The proxy forwards to vLLM, which runs inference on the RTX 5090
+   (Qwen3.8-27B, using prefix caching and speculative decoding) and
+   streams the response back along the same path.
 
 ---
 
@@ -270,19 +212,17 @@ sequenceDiagram
 | Client tooling | Existing OpenAI-compatible agent extensions (Continue/Cline/Roo/OpenCode) | Avoids building a custom VS Code extension; these already do what's needed |
 | Power management | Disable sleep (v1 default) | Simplest reliable option; revisit WoL if power draw matters |
 
----
-
 ## 9. Open architecture items
 
-These affect the diagram but aren't locked yet — flag them when sketching
-so the visual doesn't overstate certainty:
+These affect the design but aren't locked yet — worth flagging when
+sketching so the visual doesn't overstate certainty:
 
 - **Reverse proxy tool/placement** — Caddy is the working assumption, not
   confirmed. Could also be skipped in a minimal v1 (API key checked
   directly in a small shim in front of vLLM, or vLLM's own auth if
   sufficient).
 - **Agent extension choice** — Continue vs Cline vs Roo Code vs OpenCode
-  still open; doesn't change the architecture shape, only the box label at
+  still open; doesn't change the architecture shape, only the label at
   component 9.
 - **Power management approach** — sleep-disable (v1 default) vs
   Wake-on-LAN (adds a trigger-device component) — see §5.7.
