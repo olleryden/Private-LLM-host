@@ -1,9 +1,11 @@
 # Private LLM Host
 
-Run a privately-hosted LLM on a home desktop, and use it as the "brain"
-behind an agentic coding assistant (à la Claude Code / the Claude VS Code
-extension) — usable both locally on the desktop and remotely from a laptop
-anywhere with internet access.
+Run Qwen on a home desktop and access it from your other devices anywhere
+with internet while hosting is active. Start manually by default; optional
+continuous hosting and a “Start on boot” setting are planned. Build a personal assistant with shared chat
+history, searchable local files/documents/code repositories, and durable
+memory. Support regular chat and coding, with tools for web search, local
+information, and user-triggered tasks.
 
 ## Hardware (desktop, home)
 
@@ -17,8 +19,31 @@ anywhere with internet access.
 
 ## Model
 
-First target model: **Qwen3.8-27B** (Apache 2.0), served via vLLM at NVFP4
-quantization. See `ARCHITECTURE.md` for full model/serving details.
+Current setup: **Qwen3.8-27B**, using NVIDIA's NVFP4 checkpoint and vLLM
+on the RTX 5090. The fresh `.venv-nvfp4` environment passes GPU execution
+checks; model download, 32K startup, short generated responses, and API
+key checks pass. The 131,072-token configuration also passed a synthetic
+119,751-token input test with correct start/middle/end recall. Real-workload
+quality and sustained stability remain to be validated.
+Target context: 131,072 tokens for one active request.
+
+Open WebUI 0.12.2 provides browser chat with local persistent data. Private
+Tailscale Serve is configured at https://ello-lin.tailad2999.ts.net; an
+explicit iPhone/cellular acceptance test remains open. The owner finds the
+UI feature-heavy, so client choice remains under evaluation. Personal
+knowledge, memory, search, and task tools are still deferred.
+
+Open **pLLM Control** from Ubuntu's Applications menu, or run:
+
+```bash
+cd ~/Projects/pLLM
+bash scripts/start-control.sh
+```
+
+The app at <http://127.0.0.1:8787> shows the model, chat UI, and private
+sharing as separate instances, with Start/Stop and optional terminal input.
+No hosting starts automatically. See [CONTROL.md](./CONTROL.md) for lifecycle
+and launch details. Chat-client choice and latency tuning remain open.
 
 ## Docs
 
@@ -26,5 +51,15 @@ quantization. See `ARCHITECTURE.md` for full model/serving details.
   "where are we and what's next."
 - [`TASKS.md`](./TASKS.md) — granular, ordered task checklist for the
   current phase.
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — full system design: components,
-  diagrams, data flow, key decisions.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — current components, request flow,
+  how WebUI wraps the model, and where projects/history/memories live.
+- [`SETUP_LOG.md`](./SETUP_LOG.md) — commands, verified results, pending
+  steps, and reproducibility inputs for the eventual guided installer.
+
+- [`PHONE_CHAT.md`](./PHONE_CHAT.md) — desktop account setup, private iPhone
+  access, and manual UI/Serve start and stop instructions.
+
+- [`PERFORMANCE.md`](./PERFORMANCE.md) — measured speed comparisons,
+  configuration differences, and controlled tuning candidates.
+- [`CONTROL.md`](./CONTROL.md) — single local control app, instance states,
+  optional terminal input, and manual start/stop behavior.

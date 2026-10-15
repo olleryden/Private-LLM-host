@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=pLLM Control
+Comment=Start, stop, and inspect the local Qwen services
+Exec=/usr/bin/python3 /home/olleryden/Projects/pLLM/control/launcher.py
+Path=/home/olleryden/Projects/pLLM
+Icon=utilities-terminal
+Terminal=false
+Categories=Utility;
+StartupNotify=false

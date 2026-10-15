@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="pllm-token" content="__PLLM_TOKEN__">
+    <title>pLLM · Instance control</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23251d25'/%3E%3Cpath d='m11 12 8 8-8 8m13 0h7' stroke='%23ef8455' fill='none' stroke-width='3'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/static/style.css">
+    <script defer src="/static/app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <a class="brand" href="/" aria-label="pLLM instance control home"><span class="brand-mark" aria-hidden="true">›_</span><span>pLLM <span class="brand-suffix">/ control</span></span></a>
+        <div class="connection" id="connection" role="status"><span class="connection-dot" aria-hidden="true"></span><span id="connection-label">Connecting</span></div>
+      </header>
+
+      <main>
+        <div class="page-heading"><div><p class="eyebrow">LOCAL WORKSPACE</p><h1>Instances</h1><p class="page-description">One place to run your assistant.</p></div><p class="running-summary" id="running-summary">Checking instances…</p></div>
+        <p class="notice connection-error" id="connection-error" role="alert" hidden></p>
+
+        <div class="workspace">
+          <nav class="instance-list" id="instance-list" aria-label="Workspace instances"><p class="loading-state">Loading instances…</p></nav>
+
+          <section class="instance-panel" id="instance-panel" aria-labelledby="instance-name" hidden>
+            <div class="instance-header"><span class="instance-icon detail-icon" id="instance-icon" aria-hidden="true"></span><span class="status-badge" id="instance-status">Stopped</span></div>
+            <h2 id="instance-name">Instance</h2>
+            <p class="instance-description" id="instance-description"></p>
+
+            <div class="model-config" id="model-config" hidden><label for="context-select">Context window</label><select id="context-select"><option value="131072">128K tokens</option><option value="32768">32K tokens</option></select><span class="field-hint">Applied on the next start.</span></div>
+
+            <div class="instance-actions"><button class="button button-primary" id="start-button" type="button"><span aria-hidden="true">▶</span> Start instance</button><button class="button button-secondary" id="stop-button" type="button"><span class="stop-symbol" aria-hidden="true"></span> Stop</button><a class="button button-link" id="open-chat" href="#" target="_blank" rel="noopener noreferrer" hidden>Open chat <span aria-hidden="true">↗</span></a></div>
+            <p class="action-message" id="action-message" role="status" hidden></p>
+            <p class="notice instance-error" id="instance-error" role="alert" hidden></p>
+
+            <dl class="process-details"><div><dt>Process</dt><dd id="process-id">—</dd></div><div><dt>Running for</dt><dd id="process-uptime">—</dd></div><div><dt>Control</dt><dd id="process-control">—</dd></div></dl>
+            <p class="instance-note" id="instance-note"></p>
+
+            <div class="terminal-section">
+              <button class="terminal-toggle" id="terminal-toggle" type="button" aria-expanded="false" aria-controls="terminal-content"><span><span class="terminal-toggle-icon" aria-hidden="true">›_</span> Terminal</span><span class="terminal-toggle-right"><span id="terminal-toggle-label">Show output &amp; input</span><span class="chevron" aria-hidden="true">⌄</span></span></button>
+              <div class="terminal-content" id="terminal-content" hidden>
+                <div class="terminal-toolbar"><span id="terminal-caption">Process transcript</span><label class="checkbox-label"><input id="auto-scroll" type="checkbox" checked> Auto-scroll</label></div>
+                <pre class="terminal-output" id="terminal-output" tabindex="0" aria-label="Instance terminal output"><code id="terminal-text"></code></pre>
+                <p class="terminal-empty" id="terminal-empty">Output will appear here when this instance starts.</p>
+                <form id="terminal-form" autocomplete="off"><label class="sr-only" for="terminal-input">Send a line to the instance</label><div class="terminal-input-row"><span class="input-prompt" aria-hidden="true">›</span><input id="terminal-input" type="text" placeholder="Send a line to this instance…" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="terminal-help"><button class="button button-send" id="send-button" type="submit">Send <span aria-hidden="true">↵</span></button></div><div class="terminal-controls"><label class="checkbox-label"><input id="hide-input" type="checkbox"> Hide input</label><div><button class="key-button" id="interrupt-button" type="button" title="Send interrupt to this process">Ctrl+C</button><button class="key-button" id="eof-button" type="button" title="Send end of input">Ctrl+D</button></div></div></form>
+                <p class="terminal-help" id="terminal-help">Process output and line input. Interactive screen applications are not supported.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer class="app-footer"><p><span class="footer-dot" aria-hidden="true"></span> Starts only when you ask. Closing this tab leaves instances running.</p><button class="quit-button" id="quit-button" type="button">Quit control app <span aria-hidden="true">↗</span></button></footer>
+    </div>
+    <noscript><p class="notice">Enable JavaScript to use instance control.</p></noscript>
+  </body>
+</html>

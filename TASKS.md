@@ -1,78 +1,153 @@
 # Private LLM Host — Tasks
 
-Granular, ordered task checklist. Companion to `PLAN.md` (phase-level
-roadmap) — this file tracks the specific next actions within the current
-phase, in the order they should happen. Check items off as completed; move
-the "Current focus" marker as phases change.
+Last updated: 2026-10-16. After the wrap-up, the owner requested one local
+control app for the project instances. Read PLAN.md for the handoff and
+SETUP_LOG.md for commands/results. Checked items below are completed evidence,
+not claims that every component is currently running.
 
-Last updated: 2026-08-16
+## Local instance controls — requested after wrap-up
 
-## Current focus: Phase 0 — local serving
+- [x] Add one local dashboard with visible per-instance state, Start/Stop,
+      optional recent output/input, and a workspace shell.
+- [x] Reuse validated model/UI scripts without changing inference flags.
+- [x] Keep starts explicit, use readiness checks, and report external
+      instances without killing/adopting arbitrary processes.
+- [x] Add detached launch/reopen and explicit quit behavior; closing a browser
+      tab does not stop instances. No boot service or keep-awake changes.
+- [x] Add an Ubuntu Applications launcher; validate process/API behavior
+      with disposable children and the live workspace terminal.
+- [ ] Owner acceptance: start/stop the real Qwen and chat services in the app,
+      enter sudo password for sharing if requested, and chat from the iPhone.
+- [ ] Evaluate a full terminal emulator only if the transcript/line input
+      is insufficient. Full-screen terminal apps currently need a terminal.
 
-- [ ] Confirm NVIDIA driver + CUDA version on the desktop supports the RTX
-      5090 (Blackwell) and the intended vLLM build.
-- [ ] Install/upgrade vLLM to a build with Blackwell + NVFP4 + Qwen3.8-27B
-      support (likely nightly, per the official deployment recipe).
-- [ ] Download Qwen3.8-27B weights (NVFP4 quantization).
-- [ ] Launch vLLM serving Qwen3.8-27B on the desktop (internal port, e.g.
-      `:8000`), with context length capped conservatively (e.g. 64K–128K)
-      for the first run.
-- [ ] Confirm KV cache fits comfortably in remaining VRAM headroom at that
-      context length.
-- [ ] Validate serving with a plain HTTP client (`curl` or similar) against
-      `localhost:8000` — confirm `/v1/chat/completions` responds correctly.
-- [ ] Wrap vLLM in a systemd service (start on boot, restart on crash,
-      journal logging).
-- [ ] Decide fallback plan if NVFP4 tooling proves unstable (switch to
-      FP8).
+## Next session — responsiveness and client choice
 
-## Up next: Phase 1 — tool calling
+- [ ] Reconcile the stored title-generation setting. Owner reported turning
+      off all three background jobs; final DB check found title=true,
+      tags=false, follow-ups=false. Do not silently change owner settings.
+- [ ] Start the verified model manually if needed and measure direct streamed
+      short requests: first reasoning, first answer, total time, token counts,
+      and decode throughput. Compare thinking off / low / default.
+- [ ] Compare the same workload through Open WebUI; check for queue delay,
+      background work, or buffering. Owner reported 5–20s before first text;
+      historical active decode windows are about 20 tokens/s.
+- [ ] Test CUDA graphs/compilation as a separate candidate on the current
+      weights. Preserve the working launcher and recheck 128K fit/recall.
+- [ ] Evaluate embedded MTP separately if justified: startup compatibility,
+      acceptance, generation quality, VRAM, and >100K behavior.
+- [ ] Decide whether a simplified Open WebUI setup or a lighter existing
+      chat client is preferable. Owner finds the current UI bloated.
+      Preserve chat/account data before any migration; no replacement chosen.
 
-- [ ] Identify which tool-calling/function-calling parser matches
-      Qwen3.8's chat template in vLLM.
-- [ ] Test a real agent tool-call pattern (file edit / terminal command)
-      end-to-end against the local server.
-- [ ] Confirm multi-turn tool-call round trips work (not just a single
-      call).
+## Completed foundation
 
-## Later: Phase 2 — remote access
+- [x] Review Markdown plan and completed work; retain current setup evidence.
+- [x] Confirm target hardware and owner-reported driver 595.99.02 / idle
+      VRAM baseline 582MiB. Verify Ubuntu 24.04.4 LTS from the host.
+- [x] Select Qwen3.8-27B and NVIDIA NVFP4 for the current trial.
+- [x] Create `.venv-nvfp4`; verify Python 3.12.14, vLLM
+      `0.32.0rc1.dev251+gee8c47961`, torch `2.14.0+cu132`, CUDA GPU matmul.
+- [x] Download NVIDIA weights (21G), revision
+      `482ca0f3832238542f8f5295dde86b5f22711d80`.
+- [x] Diagnose first generation crash: Ninja unavailable on executable PATH.
+- [x] Provision Ninja 1.13.2, FlashInfer Python/cubin 0.7.1 and JIT cache
+      0.7.1+cu130; record the installed versions.
+- [x] Diagnose second crash: CUDA-12-linked JIT module could not load
+      libcudart.so.12. Locate existing CUDA 12.9 toolkit/runtime.
+- [x] Add correct runtime path and disable FlashInfer autotuning after
+      transient scratch-allocation failures. Verify actual generation.
+- [x] Save manual launcher with loopback binding, API key, FP8 KV, one
+      active request, eager/text-only mode, and no boot enablement.
+- [x] Verify generated chat HTTP 200 and no-key models request HTTP 401.
+- [x] Start at 131,072 total context and pass short chat/auth checks there.
+- [x] Process 119,751 synthetic input tokens + 86 output tokens; exact
+      start/middle/end recall. First content 38.45s, full response 42.65s.
+- [x] Save repeatable short/auth and long-context checks plus result artifact.
+- [x] Research single-5090 measurements; save sources/differences in
+      PERFORMANCE.md. No performance settings changed during research.
+- [x] Document no further need to reproduce superseded checkpoint setups.
 
-- [ ] Register/confirm a domain in Cloudflare (if not already present).
-- [ ] Install and configure `cloudflared` on the desktop; create the
-      tunnel.
-- [ ] Map a subdomain (e.g. `llm.yourdomain.com`) through the tunnel to
-      the local port.
-- [ ] Set up Cloudflare Access in front of the tunnel hostname.
-- [ ] Create a Cloudflare Access Service Token for programmatic (agent)
-      auth.
-- [ ] Decide on and stand up the reverse proxy (Caddy, tentative) for
-      TLS + origin API-key check + logging.
-- [ ] Test reachability from an external network (e.g. phone hotspot):
-      confirm authenticated access works and unauthenticated access is
-      blocked.
+## Chat UI and phone access
 
-## Later: Phase 3 — power management
+- [x] Select Tailscale for owner devices; inspect installed Tailscale 1.102.3.
+- [x] Install Open WebUI 0.12.2 in separate Python 3.11.16 environment with
+      torch 2.14.1+cpu. Capture requirements-webui.txt.
+- [x] Add manual UI launcher with authenticated server-side vLLM connection,
+      persistent local app data, app secret, and account login.
+- [x] Verify page/health HTTP 200 and unauthenticated UI model API HTTP 401.
+- [x] Confirm owner account and saved chats exist; browser chat requests
+      succeeded in application/model logs, including a tailnet-origin request.
+- [x] Owner enables Serve at account level; local sudo step documented.
+- [x] Confirm foreground HTTPS route for ello-lin.tailad2999.ts.net →
+      localhost:8080. No `--bg` or boot startup enabled by this setup.
+- [x] Owner disables tags/follow-ups; title generation needs reconciliation.
+- [x] Record application/project/history/memory storage in ARCHITECTURE.md.
+- [ ] Explicitly verify chat from iPhone on cellular with Tailscale connected.
+- [ ] Verify streaming/reconnect behavior on the actual phone/browser.
 
-- [ ] Apply sleep-disable policy (display sleep only, system sleep
-      disabled) — v1 default.
-- [ ] (If revisited) Evaluate Wake-on-LAN feasibility — router support for
-      WoL-over-WAN, or an always-on LAN trigger device.
+## Phase 0 follow-up — serving evidence
 
-## Later: Phase 4 — client setup
+- [ ] Capture final full dependency/wheel-source snapshot after fixes; retain
+      model revision and tested launch config for reproducibility.
+- [ ] Test representative document/code inputs, near-boundary context, and
+      repeated requests; one synthetic result does not establish full quality.
+- [ ] Observe ordinary GUI activity and peak memory during model use.
+      Earlier GNOME debugging caused forced logouts; do not repeat live
+      shell replacement experiments. Display refresh is not a proven cause.
+- [ ] Decide whether GUI coexistence needs further tuning from measurements;
+      do not switch to headless operation preemptively.
 
-- [ ] Do a short hands-on comparison of Continue / Cline / Roo Code /
-      OpenCode against the local server.
-- [ ] Pick one and configure it on the desktop (base URL, model name, auth
-      headers).
-- [ ] Configure the same extension on the laptop, pointed at the tunnel
-      endpoint.
-- [ ] Confirm end-to-end agentic workflows (multi-file edits, terminal
-      commands) work over the remote path.
+## Phase 1 — tools and coding
 
-## Later: Phase 5 — hardening (stretch)
+- [ ] Validate real multi-turn tool calls and results with qwen3_coder parser.
+- [ ] Choose an existing coding client and verify scoped project edits and
+      terminal commands against the authenticated private model endpoint.
+- [ ] Add internet search/page fetch and source links through a configured
+      application/tool runner; document which requests leave the PC.
+- [ ] Define and test one user-triggered task: parameters, permissions,
+      result reporting, failure, and cancellation.
+- [ ] Verify each client's context/tool integration explicitly. Direct vLLM
+      clients do not inherit WebUI projects/history/memory automatically.
 
-- [ ] systemd reliability tuning.
-- [ ] Improve logging (proxy + vLLM).
-- [ ] Tune context length upward from the initial conservative default,
-      based on real usage.
-- [ ] Revisit NVFP4 vs FP8 based on real-world stability/quality.
+## Phases 3–5 — lifecycle, reliability, data
+
+- [x] Add Start/Stop and visible state in a separate minimal local control app;
+      define browser-close and explicit application-quit behavior.
+- [ ] Optional “Start on boot” setting off by default; test both settings
+      and deliberate stop without an unwanted crash-policy restart.
+- [ ] Offer explicit keep-awake behavior while hosting; preserve normal
+      sleep preferences. Wake-on-LAN is deferred.
+- [ ] Test readiness, crash recovery, bounded logs, and reconnects.
+- [ ] Implement and test consistent backups/restores of application DB,
+      uploads/indexes, configuration, and necessary secrets. Git ignores app
+      data and does not back it up. Preserve state before any client change.
+- [ ] Document pinned upgrades and rollback; avoid logging personal prompts.
+
+## Phase 6 — personal context (deferred)
+
+- [x] Confirm first sources: owner-selected local files, documents, repos.
+- [ ] Inventory source roots/types/size and update frequency; exclude keys,
+      credentials, dependency directories, and build output by default.
+- [ ] Configure local extraction/CPU embedding and search with source references.
+- [ ] Test semantic queries and exact code symbols; refresh additions,
+      updates, deletions, and stale-index behavior.
+- [ ] Implement editable saved preferences/project summaries and explicit
+      scope. WebUI memory is currently disabled; folder membership alone
+      is not a validated project memory-isolation mechanism.
+- [ ] Keep chat retention, source deletion, and memory cleanup distinct.
+- [ ] Verify local processing/provider choices before ingesting personal data.
+
+## Phase 7 — acceptance and later installer
+
+- [ ] Validate real remote chat/coding/document workflows and unanswerable queries.
+- [ ] Test reboot behavior with boot startup off and on, retaining chat/memory.
+- [ ] Run a 24-hour realistic soak test and a restore test.
+- [x] Create SETUP_LOG.md and capture installation errors/fixes/results.
+- [ ] After practical use proves worthwhile, implement a guided installer
+      for the tested Ubuntu/5090 profile with pins, resumable downloads,
+      generated secrets/config, clear errors, and manual lifecycle defaults.
+- [ ] Test clean install, reruns, recovery, upgrades, and uninstall/data retention.
+
+No personal source ingestion, live web tools, coding agent, memory system,
+custom replacement chat UI, or polished installer is implemented yet.

@@ -1,0 +1,28 @@
+{
+  "target_tokens": 120000,
+  "tokenized_prompt_tokens": 119751,
+  "usage": {
+    "prompt_tokens": 119751,
+    "total_tokens": 119837,
+    "completion_tokens": 86,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    }
+  },
+  "first_content_seconds": 38.45232557300005,
+  "total_seconds": 42.65224795500035,
+  "finish_reason": "stop",
+  "expected": {
+    "alpha": "d5f8ea15338b33515f3d",
+    "beta": "d8ab48f1e65f77fb6522",
+    "gamma": "41c020e1a8f3fb3c391f"
+  },
+  "answer": "```json\n{\n  \"alpha\": \"d5f8ea15338b33515f3d\",\n  \"beta\": \"d8ab48f1e65f77fb6522\",\n  \"gamma\": \"41c020e1a8f3fb3c391f\"\n}\n```",
+  "recall_pass": {
+    "alpha": true,
+    "beta": true,
+    "gamma": true
+  },
+  "passed": true,
+  "limitations": "Synthetic single-request recall test; not broad quality, peak VRAM, or soak validation."
+}

@@ -1,0 +1,18 @@
+# Python virtual environment (vLLM + deps)
+.venv/
+.venv-nvfp4/
+.venv-webui/
+.data/
+__pycache__/
+*.py[cod]
+
+# Model weights / HF cache (large binaries, never commit)
+models/
+*.safetensors
+*.gguf
+
+# Logs
+*.log
+
+# Locally generated API credentials
+.secrets/

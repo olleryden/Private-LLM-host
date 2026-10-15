@@ -1,0 +1,897 @@
+:root {
+  color-scheme:dark;
+  --bg:#171418;
+  --surface:#201c22;
+  --surface-raised:#28232a;
+  --border:#38313b;
+  --text:#eee9ef;
+  --muted:#a69ca9;
+  --subtle:#958a99;
+  --accent:#ef926c;
+  --accent-bg:#3c2927;
+  --green:#9bcaab;
+  --green-bg:#26352d;
+  --red:#efaaa7;
+  --radius:13px;
+  font-family:Ubuntu,"Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:14px;
+  font-synthesis:none
+}
+* {
+  box-sizing:border-box
+}
+body {
+  margin:0;
+  min-width:320px;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.5
+}
+button,input,select {
+  font:inherit
+}
+button,a,input,select {
+  touch-action:manipulation
+}
+button,a {
+  -webkit-tap-highlight-color:transparent
+}
+button {
+  cursor:pointer
+}
+button:disabled {
+  cursor:default;
+  opacity:.4
+}
+a {
+  color:inherit
+}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,pre:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:4px
+}
+[hidden] {
+  display:none!important
+}
+.app-shell {
+  width:min(1120px,calc(100% - 80px));
+  margin:0 auto
+}
+.app-header {
+  height:104px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-bottom:1px solid var(--border)
+}
+.brand {
+  text-decoration:none;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  font-size:19px;
+  font-weight:650;
+  letter-spacing:-.5px
+}
+.brand-mark {
+  display:grid;
+  place-items:center;
+  width:38px;
+  height:38px;
+  background:#322631;
+  border:1px solid #4a3543;
+  border-radius:10px;
+  color:var(--accent);
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-weight:500;
+  font-size:23px
+}
+.brand-suffix {
+  font-weight:400;
+  color:var(--muted);
+  font-size:16px
+}
+.connection {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--muted);
+  font-size:12px
+}
+.connection-dot,.footer-dot {
+  height:6px;
+  width:6px;
+  display:inline-block;
+  background:var(--subtle);
+  border-radius:50%;
+  flex:none
+}
+.connection.connected .connection-dot {
+  background:var(--green);
+  box-shadow:0 0 0 4px #9bcaab0b
+}
+.connection.disconnected .connection-dot {
+  background:var(--red)
+}
+main {
+  padding:44px 0 30px
+}
+.page-heading {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  margin-bottom:27px;
+  gap:20px
+}
+.eyebrow {
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:10px;
+  letter-spacing:1.9px;
+  color:var(--muted);
+  margin:0 0 10px
+}
+h1 {
+  font-size:31px;
+  letter-spacing:-1px;
+  line-height:1.2;
+  font-weight:550;
+  margin:0 0 8px
+}
+.page-description {
+  margin:0;
+  color:var(--muted);
+  font-size:14px
+}
+.running-summary {
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  color:var(--muted);
+  font-size:11px;
+  white-space:nowrap;
+  margin:0 0 2px
+}
+.workspace {
+  display:grid;
+  grid-template-columns:295px minmax(0,1fr);
+  gap:22px;
+  align-items:start
+}
+.instance-list {
+  display:flex;
+  flex-direction:column;
+  gap:8px
+}
+.instance-card {
+  position:relative;
+  display:flex;
+  width:100%;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  padding:18px 15px;
+  border:1px solid transparent;
+  border-radius:var(--radius);
+  background:transparent;
+  color:var(--text);
+  min-height:82px;
+  transition:background .15s,border-color .15s
+}
+.instance-card:hover {
+  background:#211c23
+}
+.instance-card[aria-current=true] {
+  background:var(--surface-raised);
+  border-color:#4a3c48
+}
+.instance-card[aria-current=true]:before {
+  content:"";
+  position:absolute;
+  left:-1px;
+  top:24px;
+  bottom:24px;
+  width:2px;
+  background:var(--accent);
+  border-radius:3px
+}
+.instance-icon {
+  width:36px;
+  height:36px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--border);
+  border-radius:9px;
+  flex:none;
+  background:#211c23;
+  color:var(--muted)
+}
+.instance-icon svg {
+  width:19px;
+  height:19px;
+  stroke:currentColor;
+  fill:none;
+  stroke-width:1.5;
+  stroke-linecap:round;
+  stroke-linejoin:round
+}
+.instance-card[aria-current=true] .instance-icon {
+  border-color:#56404a;
+  color:var(--accent);
+  background:#34272e
+}
+.card-copy {
+  min-width:0;
+  flex:1
+}
+.card-name {
+  display:block;
+  font-size:13px;
+  font-weight:550;
+  letter-spacing:.05px
+}
+.card-status {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  color:var(--muted);
+  margin-top:5px
+}
+.status-dot {
+  height:5px;
+  width:5px;
+  border-radius:50%;
+  background:var(--subtle);
+  display:inline-block;
+  flex:none
+}
+.card-status.running .status-dot {
+  background:var(--green)
+}
+.card-status.external .status-dot {
+  background:#9cb8dc
+}
+.card-status.starting .status-dot,.card-status.stopping .status-dot {
+  background:var(--accent);
+  animation:pulse 1.5s ease-in-out infinite
+}
+.card-status.failed .status-dot {
+  background:var(--red)
+}
+.card-arrow {
+  color:var(--subtle);
+  font-size:18px;
+  font-weight:400;
+  opacity:0
+}
+.instance-card[aria-current=true] .card-arrow {
+  opacity:1
+}
+.instance-panel {
+  min-width:0;
+  padding:27px 30px 18px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  min-height:439px
+}
+.instance-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px
+}
+.detail-icon {
+  width:43px;
+  height:43px;
+  border-color:#4e3b49;
+  background:#32262e;
+  color:var(--accent)
+}
+.detail-icon svg {
+  width:23px;
+  height:23px
+}
+.status-badge {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid #49404c;
+  border-radius:6px;
+  background:#29242d;
+  color:var(--muted);
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:10px;
+  padding:3px 8px
+}
+.status-badge.running {
+  color:var(--green);
+  background:var(--green-bg);
+  border-color:#38503f
+}
+.status-badge.external {
+  color:#b4c8e4;
+  background:#29303a;
+  border-color:#3c4b61
+}
+.status-badge.failed {
+  color:var(--red);
+  background:#3d2b2e;
+  border-color:#654047
+}
+.status-badge.starting,.status-badge.stopping {
+  color:var(--accent);
+  border-color:#65473b;
+  background:var(--accent-bg)
+}
+h2 {
+  font-size:23px;
+  letter-spacing:-.6px;
+  font-weight:550;
+  line-height:1.3;
+  margin:0 0 8px
+}
+.instance-description {
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.7;
+  margin:0;
+  max-width:510px;
+  min-height:23px
+}
+.model-config {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:20px;
+  font-size:11px
+}
+.model-config label {
+  color:var(--muted);
+  margin-right:3px
+}
+select {
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  color:var(--text);
+  font-size:11px;
+  background:#29232b;
+  border:1px solid #4b3e4c;
+  border-radius:6px;
+  padding:7px 24px 7px 9px
+}
+.field-hint {
+  font-size:10px;
+  color:var(--subtle)
+}
+.instance-actions {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:23px
+}
+.button {
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+  min-height:37px;
+  padding:8px 13px;
+  font-size:12px;
+  text-decoration:none;
+  border-radius:7px;
+  border:1px solid transparent;
+  font-weight:550;
+  line-height:1.5;
+  white-space:nowrap;
+  transition:background .15s,border-color .15s
+}
+.button-primary {
+  color:#231b1b;
+  background:var(--accent);
+  border-color:var(--accent)
+}
+.button-primary:hover:not(:disabled) {
+  background:#f2a07e;
+  border-color:#f2a07e
+}
+.button-primary span {
+  font-size:9px
+}
+.button-secondary {
+  color:#c9bfcd;
+  background:transparent;
+  border-color:#4b414e
+}
+.button-secondary:hover:not(:disabled) {
+  background:#302831
+}
+.stop-symbol {
+  width:7px;
+  height:7px;
+  background:currentColor;
+  border-radius:1px
+}
+.button-link {
+  color:var(--accent);
+  padding-left:8px;
+  padding-right:8px;
+  margin-left:auto
+}
+.button-link:hover {
+  background:var(--accent-bg)
+}
+.process-details {
+  display:grid;
+  grid-template-columns:1fr 1fr 1.2fr;
+  margin:26px 0 17px;
+  padding:19px 0 0;
+  border-top:1px solid var(--border);
+  gap:12px
+}
+.process-details dt {
+  color:var(--subtle);
+  font-size:10px;
+  margin:0 0 5px
+}
+.process-details dd {
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:11px;
+  color:#c6bbcb;
+  margin:0;
+  overflow-wrap:anywhere
+}
+.instance-note {
+  font-size:11px;
+  line-height:1.7;
+  color:var(--muted);
+  margin:0 0 22px
+}
+.terminal-section {
+  border-top:1px solid var(--border);
+  margin-top:8px
+}
+.terminal-toggle {
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  padding:16px 0 0;
+  border:0;
+  background:none;
+  color:#d1c7d5;
+  font-size:12px
+}
+.terminal-toggle>span {
+  display:flex;
+  align-items:center;
+  gap:9px
+}
+.terminal-toggle-icon {
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:15px;
+  color:var(--muted)
+}
+.terminal-toggle-right {
+  color:var(--subtle);
+  font-size:10px
+}
+.chevron {
+  font-size:17px;
+  transition:transform .15s
+}
+.terminal-toggle[aria-expanded=true] .chevron {
+  transform:rotate(180deg)
+}
+.terminal-content {
+  margin-top:15px
+}
+.terminal-toolbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:9px;
+  color:var(--muted);
+  background:#211921;
+  border:1px solid #423342;
+  border-bottom:0;
+  border-radius:7px 7px 0 0;
+  padding:9px 11px
+}
+.checkbox-label {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+  font-size:10px;
+  line-height:1.3;
+  white-space:nowrap
+}
+.checkbox-label input {
+  accent-color:var(--accent);
+  width:12px;
+  height:12px;
+  margin:0
+}
+.terminal-output {
+  position:relative;
+  margin:0;
+  background:#160f17;
+  border:1px solid #423342;
+  min-height:230px;
+  max-height:400px;
+  overflow:auto;
+  padding:13px 12px;
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:11px;
+  line-height:1.65;
+  color:#d3c6d8;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  tab-size:4;
+  scrollbar-color:#5a455a #1a111c
+}
+.terminal-output code {
+  font:inherit
+}
+.terminal-empty {
+  color:var(--subtle);
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:10px;
+  padding:10px 12px;
+  margin:0;
+  background:#1b141c;
+  border:1px solid #423342;
+  border-top:0
+}
+.terminal-input-row {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  background:#211921;
+  padding:7px 7px 7px 12px;
+  border:1px solid #423342;
+  border-top:0;
+  border-radius:0 0 7px 7px
+}
+.input-prompt {
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  color:var(--accent);
+  font-size:20px;
+  line-height:1
+}
+.terminal-input-row input {
+  width:0;
+  flex:1;
+  min-width:0;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:11px;
+  padding:5px 0;
+  outline-offset:2px
+}
+.terminal-input-row input::placeholder {
+  color:var(--subtle)
+}
+.button-send {
+  min-height:27px;
+  padding:4px 9px;
+  font-size:10px;
+  color:var(--accent);
+  background:#38282d;
+  border-color:#56404a
+}
+.button-send:hover:not(:disabled) {
+  background:#493039
+}
+.terminal-controls {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+  color:var(--muted)
+}
+.terminal-controls>div {
+  display:flex;
+  gap:6px
+}
+.key-button {
+  border:1px solid #493b4a;
+  border-radius:4px;
+  color:var(--muted);
+  background:transparent;
+  font-family:"Ubuntu Mono","DejaVu Sans Mono",monospace;
+  font-size:9px;
+  padding:3px 7px
+}
+.key-button:hover:not(:disabled) {
+  background:#342735;
+  color:var(--text)
+}
+.terminal-help {
+  color:var(--subtle);
+  font-size:9px;
+  line-height:1.6;
+  margin:11px 0 0
+}
+.notice {
+  font-size:12px;
+  line-height:1.6;
+  border:1px solid #66414b;
+  color:#edb6bc;
+  background:#38262e;
+  border-radius:7px;
+  padding:11px 13px;
+  overflow-wrap:anywhere
+}
+.connection-error {
+  margin:0 0 20px
+}
+.instance-error {
+  margin:17px 0 0
+}
+.action-message {
+  font-size:11px;
+  color:var(--muted);
+  margin:12px 0 0
+}
+.loading-state {
+  color:var(--muted);
+  font-size:12px;
+  padding:18px 15px
+}
+.app-footer {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  border-top:1px solid var(--border);
+  padding:22px 0 28px;
+  color:var(--subtle);
+  font-size:10px
+}
+.app-footer p {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  line-height:1.7
+}
+.footer-dot {
+  height:4px;
+  width:4px;
+  background:#88728b
+}
+.quit-button {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  color:var(--muted);
+  font-size:10px;
+  padding:4px 0;
+  border:0;
+  background:transparent;
+  white-space:nowrap
+}
+.quit-button:hover {
+  color:var(--text)
+}
+.sr-only {
+  position:absolute;
+  width:1px;
+  height:1px;
+  margin:-1px;
+  padding:0;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0
+}
+@keyframes pulse {
+  50% {
+    opacity:.35
+  }
+}
+@media(min-width:1500px) {
+  .app-shell {
+    margin-top:30px
+  }
+}
+@media(max-width:850px) {
+  .app-shell {
+    width:calc(100% - 40px)
+  }
+  .workspace {
+    grid-template-columns:235px minmax(0,1fr);
+    gap:16px
+  }
+  .instance-card {
+    padding-left:11px;
+    padding-right:11px;
+    gap:9px
+  }
+  .instance-icon {
+    width:31px;
+    height:31px
+  }
+  .instance-panel {
+    padding:23px 22px 18px
+  }
+  .instance-actions {
+    gap:8px
+  }
+  .button-link {
+    margin-left:0
+  }
+  .field-hint {
+    width:100%;
+    margin-left:0
+  }
+  .app-footer {
+    align-items:flex-start
+  }
+  .app-footer p {
+    max-width:400px
+  }
+}
+@media(max-width:650px) {
+  .app-shell {
+    width:calc(100% - 32px)
+  }
+  .app-header {
+    height:78px
+  }
+  .brand {
+    font-size:18px;
+    gap:10px
+  }
+  .brand-mark {
+    width:33px;
+    height:33px;
+    font-size:21px
+  }
+  .brand-suffix {
+    font-size:14px
+  }
+  .connection {
+    font-size:10px
+  }
+  main {
+    padding-top:30px
+  }
+  .page-heading {
+    align-items:center;
+    margin-bottom:20px;
+    gap:10px
+  }
+  .eyebrow {
+    font-size:9px;
+    margin-bottom:8px
+  }
+  h1 {
+    font-size:28px
+  }
+  .page-description {
+    font-size:12px
+  }
+  .running-summary {
+    font-size:9px
+  }
+  .workspace {
+    display:block
+  }
+  .instance-list {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-bottom:17px
+  }
+  .instance-card {
+    min-height:74px;
+    background:#1d191f;
+    border-color:#2d2631;
+    padding:12px 10px;
+    gap:9px;
+    border-radius:9px
+  }
+  .instance-card[aria-current=true]:before {
+    top:20px;
+    bottom:20px
+  }
+  .card-name {
+    font-size:11px
+  }
+  .card-status {
+    font-size:10px;
+    margin-top:3px
+  }
+  .card-arrow {
+    display:none
+  }
+  .instance-icon {
+    width:28px;
+    height:28px;
+    border-radius:7px
+  }
+  .instance-icon svg {
+    width:16px;
+    height:16px
+  }
+  .instance-panel {
+    padding:22px 20px 17px;
+    border-radius:10px;
+    min-height:0
+  }
+  .detail-icon {
+    width:39px;
+    height:39px
+  }
+  .detail-icon svg {
+    width:21px;
+    height:21px
+  }
+  .instance-header {
+    margin-bottom:16px
+  }
+  h2 {
+    font-size:22px
+  }
+  .instance-description {
+    font-size:12px
+  }
+  .model-config {
+    font-size:10px
+  }
+  .field-hint {
+    width:auto;
+    font-size:9px
+  }
+  .process-details {
+    margin-top:23px;
+    gap:8px
+  }
+  .process-details dd {
+    font-size:10px
+  }
+  .instance-note {
+    font-size:10px
+  }
+  .terminal-output {
+    font-size:10px;
+    min-height:210px;
+    max-height:350px
+  }
+  .terminal-toggle-right {
+    font-size:9px
+  }
+  .terminal-input-row input {
+    font-size:11px
+  }
+  .app-footer {
+    padding-top:17px;
+    font-size:9px;
+    gap:16px;
+    align-items:center
+  }
+  .app-footer p {
+    max-width:220px
+  }
+  .quit-button {
+    font-size:9px
+  }
+  .button-link {
+    margin-left:auto
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  *,*:before,*:after {
+    animation:none!important;
+    transition:none!important
+  }
+}

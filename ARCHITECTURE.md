@@ -1,232 +1,173 @@
 # Architecture — Private LLM Host
 
-Companion to `PLAN.md` (phase-level roadmap/status) and `TASKS.md`
-(granular task checklist). This file is the text reference for hardware,
-model, every component, how things connect, and why each choice was made.
-Visual diagrams are being sketched separately (Claude Design) rather than
-maintained here — this file just needs to carry enough detail for that
-sketch to be accurate.
+Last updated: 2026-10-16. This describes the current installation and clearly
+separates unimplemented features. See SETUP_LOG.md for exact commands/fixes.
 
-Last updated: 2026-08-16
+## Hardware and model
 
----
+Ubuntu 24.04.4 LTS; RTX 5090 32GB; Ryzen 9 9950X3D; 96GB DDR5; NVMe storage.
+Driver 595.99.02. Model: `nvidia/Qwen3.8-27B-NVFP4`, revision
+`482ca0f3832238542f8f5295dde86b5f22711d80`.
+NVIDIA's checkpoint mixes NVFP4 and FP8 layers; it is not uniformly 4-bit.
 
-## 1. Hardware (desktop, home)
+vLLM runs in `.venv-nvfp4`: Python 3.12.14, vLLM
+`0.32.0rc1.dev251+gee8c47961`, PyTorch `2.14.0+cu132`.
+Current manual launcher: scripts/serve-nvfp4.sh. It binds to loopback :8000,
+uses a local API key, FP8 KV cache, one active request, eager text-only
+execution, and disabled FlashInfer autotuning. Embedded MTP is present in
+the checkpoint but not enabled. Prefix caching is enabled.
 
-| Component | Spec |
+The 131,072-token configuration passed a 119,751-token synthetic recall
+request; this is one capacity check, not full quality/stability validation.
+Model allocation was 18.96GiB. Long-test sample: 31,546 / 32,607MiB GPU
+memory used; this was not peak monitoring. Desktop workloads share VRAM.
+
+## Current components and request flow
+
+```text
+iPhone Safari + Tailscale
+    -> private HTTPS Serve route on the PC
+    -> Open WebUI (127.0.0.1:8080, user login)
+         -> application database: accounts, chats, folders, settings
+         -> authenticated request to vLLM (127.0.0.1:8000/v1)
+              -> Qwen weights + GPU execution
+         <- streamed reasoning/answer
+    <- browser display and saved conversation
+```
+
+Local browser access is http://127.0.0.1:8080. Private remote URL is
+https://ello-lin.tailad2999.ts.net. Tailscale Serve uses the foreground
+command without `--bg`. The last configuration check confirmed that route;
+an explicit iPhone/cellular acceptance test remains open. No public Funnel
+or home-router port forwarding is part of this design.
+
+Open WebUI 0.12.2 runs in separate `.venv-webui` using Python 3.11.16 and
+CPU-only torch 2.14.1. It connects to vLLM server-side, so the phone does not
+need the model API key. CPU-only UI dependencies preserve inference VRAM.
+
+## What Open WebUI adds around the model
+
+Yes: it is an application layer around the model server. It stores chats,
+selects messages/instructions for requests, exposes model parameters,
+formats streamed output, manages user accounts, and can orchestrate tools
+and retrieval when configured. It does not retrain Qwen as you chat.
+
+Its many settings come from several separate jobs:
+
+| Setting area | What it controls |
 |---|---|
-| OS | Ubuntu |
-| GPU | RTX 5090, 32GB VRAM (Blackwell generation) |
-| CPU | AMD Ryzen 9 9950X3D |
-| RAM | 96GB DDR5-6000 |
-| Storage | 4TB PCIe 5 NVMe |
+| Generation | Parameters sent to vLLM/model, e.g. output limit, temperature, reasoning effort |
+| Conversation/project | Saved chats, selected history, folder instructions, attachments |
+| Application | Appearance, accounts, permissions, storage, connection selection |
+| Optional orchestration | Retrieval, memory, web search, tools, title/tag/follow-up requests |
 
-Headroom notes: 32GB VRAM comfortably fits the target model even at higher
-precision (see §2). 96GB system RAM and 4TB NVMe are not bottlenecks for
-this workload — the whole model lives in VRAM, system RAM just needs to
-cover OS + serving process + agent tooling overhead.
+Some controls change the prompt, some change inference parameters, and
+others only affect the application. Exposing a setting does not establish
+that every connected model/runtime supports it. Additional UI generation
+jobs call the same model and can consume capacity/queue user requests.
 
-## 2. Model — Qwen3.8-27B
+Current evaluation: the owner finds the interface feature-heavy. Keep it
+replaceable, avoid adding features for now, and decide whether simplifying
+this client or choosing a lighter existing client fits daily use better.
+No replacement application has been selected or implemented.
 
-Released 2026-08-13/14 (Apache 2.0). Key facts relevant to this build:
+## Where projects, chats, and memories live
 
-- **27–28B dense parameters**, hybrid attention: only 16 of 64 layers do
-  full (quadratic) attention; the other 48 use a constant-size
-  linear-attention state. This keeps KV cache size small even at very long
-  context — good news for feeding an agent large repo context without
-  exploding VRAM use.
-- **262,144 token native context**, extensible to 1M via YaRN.
-- Native vision-language model (multimodal) — **v1 of this project only
-  uses the text/coding path**; vision is a possible stretch goal (e.g.
-  screenshot-driven debugging) later.
-- Ships with a built-in MTP (multi-token prediction) draft head — enables
-  speculative decoding for faster generation, natively supported in vLLM.
-- Benchmarks position it as strong specifically for coding/agentic work —
-  e.g. Terminal-Bench and SWE-bench Pro scores competitive with much
-  larger closed models. Good match for the intended use case.
+The launcher sets DATA_DIR to:
 
-**VRAM budget by precision** (weights only, before KV cache):
+`/home/olleryden/Projects/pLLM/.data/open-webui/`
 
-| Precision | Approx. size | Notes |
-|---|---|---|
-| BF16 | ~56GB | Doesn't fit on one 32GB card |
-| FP8 | ~28GB | Fits, tight headroom for KV cache/context |
-| NVFP4 | ~24.6GB | Blackwell-native 4-bit; official vLLM recipe validated on this exact GPU generation; leaves the most headroom for long context |
-| GGUF (4-bit, llama.cpp path) | ~14–17GB | Not the current plan (see §5.3), noted as a fallback option |
+| Data | Current local storage |
+|---|---|
+| Accounts, chat history, app settings | `webui.db` (SQLite) |
+| Project/folder metadata and chat membership | `folder` / `chat` records in `webui.db` |
+| Saved memory entries, if enabled | `memory` records in `webui.db`; memory lookup can also use a vector index |
+| Uploaded attachments | `uploads/` plus file records in the database |
+| Document/memory search indexes, if configured | `vector_db/` in this default installation |
+| Transient caches | `cache/` |
+| Model weights | Separate `models/Qwen3.8-27B-NVFP4-NVIDIA/` |
+| Model API key and app signing secret | Separate ignored `.secrets/` |
 
-**Recommended starting precision: NVFP4.** There's an official vLLM
-deployment recipe for Qwen3.8-27B at NVFP4 specifically targeting Blackwell
-GPUs, and it leaves the most VRAM free for large context windows, which
-matters for a coding agent sending substantial file/repo context per turn.
-FP8 is the fallback if NVFP4 tooling proves unstable (it's a newer/more
-exotic quantization format; FP8 is more broadly battle-tested).
+A WebUI “project” is a logical folder grouping chats, with optional default
+model, instructions, and attached knowledge. It is not automatically a real
+filesystem directory with that project name, a mounted code repository,
+or a newly trained model. The same account on phone/desktop sees the
+server-stored state. Browser caches/session state also exist, but the PC
+application database is the durable record in this setup.
 
----
+Chat history is not the same as long-term memory. The application chooses
+what history, instructions, and retrieved material to include in a request;
+Qwen only processes what it receives. Putting chats in the same folder does
+not automatically load all sibling conversations into every request.
 
-## 3. Components overview
+At wrap-up there are two saved chats and one account, but no folders,
+knowledge collections, or memory records. Memory and web search are disabled.
+The built-in memory schema is user-linked and can have paths/types; project
+memory isolation is not configured or proven. Do not assume folder membership
+alone creates a separate memory bank.
 
-Three independent layers, chained together: model serving (vLLM on the
-GPU), network & auth (Cloudflare Tunnel + Access, plus an optional reverse
-proxy), and client tooling (an existing OpenAI-compatible agent extension).
-A fourth cross-cutting concern — power management — determines whether the
-chain is even reachable at any given time. Full detail per component is in
-§5; the connection order and trust boundaries are described in §6–7.
+These local data directories are Git-ignored. Updating the repository does
+not back up conversations. For a complete move/backup, preserve the data
+folder (including uploads/indexes) and application secret, not just weights
+or a chat export. Use a consistent backup while the UI is stopped, or the
+supported database backup process; copying only a live SQLite main file can
+miss WAL writes. A backup/restore procedure is still to be implemented and tested.
+Changing the inference engine does not migrate app data; changing the UI
+requires explicit history/memory export/import planning.
 
-## 4. Component inventory
+## Optional features still pending
 
-| # | Component | Technology | Runs on | Port(s) | Protocol | Exposure |
-|---|---|---|---|---|---|---|
-| 1 | Model weights + runtime | Qwen3.8-27B, NVFP4 quant | Desktop GPU (VRAM) | — | — | Not directly network-facing |
-| 2 | Model serving layer | vLLM | Desktop, systemd service | `:8000` (internal) | HTTP, OpenAI-compatible (`/v1/chat/completions`, `/v1/completions`) | Bound to localhost/internal interface only |
-| 3 | Reverse proxy (tentative) | Caddy | Desktop | e.g. `:443` internal or in front of `:8000` | HTTPS/HTTP | Sits between `cloudflared` and vLLM |
-| 4 | Tunnel daemon | `cloudflared` | Desktop | none inbound (outbound-only) | Cloudflare Tunnel protocol (outbound) | No inbound firewall/router ports opened |
-| 5 | Tunnel edge + hostname | Cloudflare Tunnel | Cloudflare's network | 443 (public) | HTTPS | Public-facing edge |
-| 6 | Auth gate | Cloudflare Access (Zero Trust) | Cloudflare's network | — | Service-token headers (`CF-Access-Client-Id` / `CF-Access-Client-Secret`) for programmatic clients; SSO/OTP for interactive/browser use | Rejects unauthenticated traffic before it reaches the tunnel |
-| 7 | Origin API key (defense-in-depth) | Checked at proxy or vLLM | Desktop | — | Bearer/API-key header | Second gate in case a service token leaks |
-| 8 | DNS / domain | Subdomain on a Cloudflare-managed domain (e.g. `llm.yourdomain.com`) | Cloudflare | — | DNS | Public record, routes to tunnel |
-| 9 | Client / agent extension | Continue / Cline / Roo Code / OpenCode (not yet chosen) | Laptop or desktop, inside VS Code | — | HTTPS (remote) or HTTP (local) | Configured with base URL + auth headers |
-| 10 | Power/availability policy | Sleep disabled (v1 default); WoL considered later | Desktop OS | — | — | Desktop must be awake for the whole chain to work |
+Document ingestion/retrieval, embeddings, live file tools, durable memory,
+web search, project edits/terminal actions, user-triggered tasks, and coding
+client integration are not implemented. Offline mode currently prevents
+embedding/voice downloads; a missing cached embedding model is logged but
+chat works. No personal folders/cloud accounts were connected automatically.
 
-## 5. Component details
+A future tool runner executes model-requested actions and sends results back
+to Qwen. Define tool scopes and permissions per client. A coding client
+pointed directly at vLLM does not inherit WebUI history, projects, or memory.
 
-### 5.1 GPU + model (Qwen3.8-27B)
-- Lives entirely in VRAM on the RTX 5090 once vLLM loads it — no reload per
-  request.
-- NVFP4 quantization (~24.6GB weights), leaving VRAM headroom for KV cache /
-  long context. FP8 (~28GB) is the fallback quantization if NVFP4 proves
-  unstable.
-- Hybrid attention architecture (16 full-attention layers + 48
-  linear-attention layers) keeps KV cache growth sub-quadratic — relevant
-  to how much context headroom is actually available in practice.
-- Built-in MTP draft head enables speculative decoding inside vLLM — a
-  performance detail, not a separate component.
+## Lifecycle and performance
 
-### 5.2 vLLM (model serving layer)
-- Single systemd service on the desktop. Starts on boot, restarts on
-  crash, logs to journal.
-- Serves an OpenAI-compatible HTTP API on an internal port (`:8000`
-  placeholder).
-- Must run with a tool-calling/function-calling parser matching Qwen3.8's
-  chat template — this is what lets agent tool calls (file edit, terminal)
-  round-trip correctly. Still to verify during build (Phase 1).
-- Bound to localhost or an internal-only interface — it never talks to the
-  internet directly. Everything external goes through the proxy/tunnel.
-- Context length capped conservatively at launch (64K–128K, well under the
-  262K/1M ceiling) to keep KV cache size predictable.
+The local pLLM Control app at `127.0.0.1:8787` supervises explicit model,
+chat UI, foreground Serve, and optional workspace-shell instances. It is
+separate from the chat UI and is not exposed by the existing Tailscale route.
+Its Python-standard-library HTTP backend launches the existing scripts in
+process groups with pseudo-terminals; the buildless frontend shows status,
+health-based readiness, bounded output, and optional line input. No model
+starts merely because the control app opens.
 
-### 5.3 Reverse proxy (tentative — Caddy)
-- Optional but recommended layer sitting between `cloudflared` and vLLM.
-- Responsibilities: TLS/host handling, checking the origin API key
-  (defense-in-depth alongside Cloudflare Access), request logging.
-- Not yet locked in as a hard requirement — architecturally it's the
-  natural place to put the "second auth check," so it's included here as
-  the recommended shape even though the exact tool could change.
+`scripts/start-control.sh` starts a detached manager or reopens the existing
+one. Browser close leaves it running. Explicit quit with active instances
+requires confirmation to stop them; normal manager shutdown cleans up its
+owned process groups. Externally started instances are observed, not adopted
+or killed. Sharing retains the original foreground Serve command and can
+request sudo authentication inside its optional terminal.
 
-### 5.4 `cloudflared` (tunnel daemon)
-- Runs on the desktop, opens an **outbound-only** connection to
-  Cloudflare's edge. No inbound port forwarding on the home router — this
-  is the key security property of the design (no attack surface exposed
-  at the network perimeter).
-- Hands authenticated, tunneled requests to the local proxy/vLLM.
+The backend binds only to loopback and checks host, origin, and a per-launch
+API token. Runtime metadata lives in ignored `.data/control/`; terminal
+transcripts are bounded in memory. This is a local process-control surface,
+not a remotely exposed shell or a full terminal emulator. CONTROL.md explains
+launching, lifecycle, limitations, and command-line alternatives.
 
-### 5.5 Cloudflare Tunnel + Access (edge layer)
-- A subdomain (e.g. `llm.yourdomain.com`) on a Cloudflare-managed domain
-  maps through the tunnel to the desktop's local port.
-- **Cloudflare Access** sits in front of the hostname and rejects
-  unauthenticated requests at Cloudflare's edge — before they ever reach
-  the home network.
-- Two auth modes:
-  - Interactive (browser) → SSO / email-OTP.
-  - Programmatic (agent extensions) → **Access Service Token**
-    (`CF-Access-Client-Id` + `CF-Access-Client-Secret` headers), configured
-    directly in the agent extension's request headers.
+The owner subsequently requested graceful WebUI shutdown, and :8080 was
+verified closed; the model was already stopped. The owner's independent
+Serve terminal was left alone. Boot startup and keep-awake behavior remain
+explicit opt-ins and are not configured by the control app.
 
-### 5.6 Client / agent extension layer
-- No custom extension is being built — an existing OpenAI-compatible-
-  endpoint agent tool (Continue, Cline, Roo Code, or OpenCode; final pick
-  still open) is pointed at the tunnel hostname.
-- Configuration surface per client: base URL
-  (`https://llm.yourdomain.com/v1` remote, or `http://localhost:8000/v1`
-  local), model name, auth headers (service token + origin API key).
-- Same config shape works from laptop and desktop; desktop can optionally
-  shortcut straight to localhost.
+Active decode logs show ~20 tokens/s; owner reports 5–20s to first visible
+text. Tag/follow-up generation are now false; final persisted title setting
+was true despite the owner's report of disabling it. Record/reconcile next
+session rather than silently change it. Compare direct streamed timings,
+then graph/compilation and MTP candidates one at a time. PERFORMANCE.md
+holds external comparison points, not guaranteed speed targets.
 
-### 5.7 Power/availability policy
-- Not a network component, but an architectural dependency: every hop
-  above requires the desktop to be powered on and `cloudflared`/vLLM
-  running.
-- v1 default: disable system sleep (display sleep only). Wake-on-LAN is a
-  later option if idle power draw becomes a concern — would add a "WoL
-  trigger" component (router support or an always-on LAN device) if
-  adopted.
+## References
 
----
-
-## 6. Connections & trust boundaries
-
-Three trust zones, in order from least to most trusted:
-
-1. **Public internet** (laptop, anywhere) — the agent extension originates
-   requests here. Nothing about this zone is trusted.
-2. **Cloudflare's edge** — the request first hits Cloudflare Access, which
-   checks the service-token headers (or SSO/OTP for interactive use) and
-   rejects unauthenticated traffic outright. Only authenticated requests
-   are handed to Cloudflare Tunnel routing.
-3. **Home network / desktop** — `cloudflared` receives the tunneled
-   request over its outbound-only connection (no inbound port is ever
-   opened on the router or desktop firewall). It hands off to the reverse
-   proxy, which performs a second check — the origin API key — before
-   forwarding to vLLM, which is itself bound to localhost only.
-
-Two independent auth checks sit between the public internet and the model:
-Cloudflare Access at the edge, and the origin API key at the proxy. The
-only network-facing surface anywhere in the system is Cloudflare's own
-edge — the home network never accepts inbound connections.
-
-When working directly on the desktop, the client can bypass zones 1–2
-entirely and talk to `localhost:8000` (or the proxy port) directly.
-
-## 7. Request flow (remote case)
-
-1. Agent extension (laptop, anywhere) sends a request to the Cloudflare
-   tunnel hostname over HTTPS, with service-token headers attached.
-2. Cloudflare Access checks the service-token headers; rejects
-   unauthenticated traffic at the edge.
-3. Cloudflare Tunnel routes the authenticated request through the
-   outbound tunnel to `cloudflared` on the desktop.
-4. `cloudflared` hands off to the local reverse proxy, which checks the
-   origin API key.
-5. The proxy forwards to vLLM, which runs inference on the RTX 5090
-   (Qwen3.8-27B, using prefix caching and speculative decoding) and
-   streams the response back along the same path.
-
----
-
-## 8. Key decisions log
-
-| Decision | Choice | Rationale |
-|---|---|---|
-| Remote access | Cloudflare Tunnel + Access | Public HTTPS endpoint, SSO/service-token gate, no VPN client required on any device |
-| Inference engine | vLLM | Official recipe for this model on Blackwell GPUs; prefix caching + speculative decoding fit the agentic workload well |
-| Quantization | NVFP4 (fallback: FP8) | Blackwell-native, most VRAM headroom for long context |
-| Client tooling | Existing OpenAI-compatible agent extensions (Continue/Cline/Roo/OpenCode) | Avoids building a custom VS Code extension; these already do what's needed |
-| Power management | Disable sleep (v1 default) | Simplest reliable option; revisit WoL if power draw matters |
-
-## 9. Open architecture items
-
-These affect the design but aren't locked yet — worth flagging when
-sketching so the visual doesn't overstate certainty:
-
-- **Reverse proxy tool/placement** — Caddy is the working assumption, not
-  confirmed. Could also be skipped in a minimal v1 (API key checked
-  directly in a small shim in front of vLLM, or vLLM's own auth if
-  sufficient).
-- **Agent extension choice** — Continue vs Cline vs Roo Code vs OpenCode
-  still open; doesn't change the architecture shape, only the label at
-  component 9.
-- **Power management approach** — sleep-disable (v1 default) vs
-  Wake-on-LAN (adds a trigger-device component) — see §5.7.
-- **Exact vLLM/proxy port numbers** — placeholders (`:8000`, `:443`)
-  pending actual configuration during Phase 0.
-- **Multi-model / model-swap support** — out of scope for v1; would add a
-  routing/model-selection component in front of vLLM if adopted later.
+- [Qwen model card](https://huggingface.co/Qwen/Qwen3.8-27B)
+- [NVIDIA checkpoint](https://huggingface.co/nvidia/Qwen3.8-27B-NVFP4)
+- [WebUI folders/projects](https://docs.openwebui.com/features/chat-conversations/chat-features/conversation-organization/)
+- [WebUI memory](https://docs.openwebui.com/features/chat-conversations/memory/)
+- [WebUI database schema](https://docs.openwebui.com/reference/database-schema/)
+- [WebUI database migration/backup](https://docs.openwebui.com/tutorials/maintenance/database/)
+- [Tailscale Serve](https://tailscale.com/docs/reference/tailscale-cli/serve)
