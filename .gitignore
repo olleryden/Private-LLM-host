@@ -16,3 +16,8 @@ models/
 
 # Locally generated API credentials
 .secrets/
+
+# Local-only personal context: the folder and its README are tracked,
+# everything else inside stays on this PC
+personal/*
+!personal/README.md

@@ -20,6 +20,10 @@ same checkpoint, runtime, prompt, sampling, or measurement method.
   reported disabling title/tag/follow-up jobs; the final persisted-state
   check found tags/follow-ups off but titles on. No improvement has been
   measured yet. Initial direct short-latency probe found no model server.
+- Kong AI Gateway overhead (2026-11-16, one short request through
+  `127.0.0.1:8100`): `X-Kong-Proxy-Latency` 2 ms against 2,032 ms upstream
+  for 37 output tokens (33 reasoning). This is a single sample, but gateway
+  overhead is negligible next to generation time.
 
 ## Published single-desktop-5090 comparison points
 

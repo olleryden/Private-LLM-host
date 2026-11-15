@@ -1,9 +1,61 @@
 # Private LLM Host — Tasks
 
-Last updated: 2026-10-16. After the wrap-up, the owner requested one local
-control app for the project instances. Read PLAN.md for the handoff and
-SETUP_LOG.md for commands/results. Checked items below are completed evidence,
-not claims that every component is currently running.
+Last updated: 2026-11-16. Kong AI Gateway (Konnect-managed) was added in
+front of vLLM; the next iteration integrates it (PLAN.md). Read PLAN.md for
+the handoff and SETUP_LOG.md for commands/results. Checked items below are
+completed evidence, not claims that every component is currently running.
+
+## Kong AI Gateway: added 2026-11-15 to 2026-11-16
+
+- [x] Owner chooses to keep the Konnect control plane. Exception to the
+      local-only rule, for configuration and analytics only.
+- [x] Find Kong holding `127.0.0.1:8000`. It blocked vLLM and made pLLM
+      Control report Qwen as running.
+- [x] Recreate `kong-ai-gateway` with host networking, proxy
+      `127.0.0.1:8100`, admin/GUI/status listeners off, and the vLLM key
+      in container env. The old container was kept for rollback.
+- [x] Verify the loopback-only listener (refused on LAN, Tailscale, and
+      Docker addresses) and a free `:8000`.
+- [x] Owner confirms node `ello-lin` Connected/In sync/Compatible, and
+      creates provider `ello-lin-vllm` and model `qwen3.8-27b`.
+- [x] Verify chat and streaming through Kong, gateway-added vLLM auth,
+      and Kong overhead of about 2 ms.
+- [x] Document setup, usage, access management, and operations
+      (KONG.md, SETUP_LOG.md §22).
+- [ ] **Next iteration, step A:** analyze what Kong changes across the
+      project from the updated docs. Confirm the loose-ends list in PLAN.md.
+- [ ] **Next iteration, step B:** edit code to close the loose ends below,
+      with tests, and keep the docs consistent.
+- [ ] Switch Open WebUI's persisted connection to Kong: `:8100/v1`,
+      placeholder key, manual model ID. Then update
+      `scripts/serve-webui.sh` and PHONE_CHAT.md.
+- [ ] Make pLLM Control identify Qwen more robustly than "something is
+      listening on :8000", and show Kong's status. Decide whether it
+      manages Kong.
+- [ ] Add a repository script to create or recreate the Kong container
+      without embedded secrets, with no restart policy by default. Check
+      the current restart policy.
+- [ ] Rotate the exposed vLLM API key; this needs the recreate script.
+- [ ] Owner checks in Konnect:
+  - [ ] the provider header shows `{vault://env/pllm-vllm-auth}`;
+  - [ ] `docker rm kong-ai-gateway-old`;
+  - [ ] the unused data-plane certificate is deleted;
+  - [ ] the data-plane key is rotated if the exposed key is the active one.
+- [ ] Before sharing Kong beyond the PC: add an API-key auth strategy and
+      consumers, align the key header with `Authorization: Bearer`
+      clients, and test that keyless requests get 401.
+
+## Security hardening: tailnet exposure review, 2026-11-16
+
+Details stay in the ignored `personal/` folder, not in this pushed file.
+
+- [ ] Enable two-factor login on the identity account used for Tailscale,
+      and on Konnect.
+- [ ] Check and tighten the remote shell access settings.
+- [ ] Narrow file-sharing services to what is needed.
+- [ ] Confirm a strong, unique Open WebUI owner password. It is the only
+      check before chat for tailnet devices.
+- [ ] Optionally restrict tailnet devices to the ports they need.
 
 ## Local instance controls — requested after wrap-up
 

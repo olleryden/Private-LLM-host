@@ -1,6 +1,6 @@
 # Setup log and installer inputs
 
-Last updated: 2026-10-16
+Last updated: 2026-11-16
 
 Purpose: record the manual setup accurately enough to build an installer
 after the full system works. Keep commands, results, versions, failures,
@@ -902,3 +902,170 @@ returned exact output, and stopped cleanly. No Qwen/WebUI generation or GPU
 workload was started. Final managed model/UI/sharing/shell states are stopped.
 This validates the real private route from the PC, not a physical iPhone or
 reboot. Those acceptance checks remain open in TASKS.md and PHONE_CONTROL.md.
+
+## 22. Kong AI Gateway in front of vLLM — 2026-11-15 to 2026-11-16
+
+Owner goal: make the local model reachable through Kong AI Gateway. Owner
+chose (2026-11-15) to keep Kong Konnect as the hosted control plane, as an
+explicit exception to the local-only rule. Configuration and usage
+statistics live in Konnect (EU region); prompts and replies stay on the PC.
+Day-to-day usage, access management, and operations are in KONG.md.
+
+### Prior state (owner-provided summary, not re-verified here)
+
+Before this session, in a separate assistant conversation, the owner:
+
+- installed Docker 29.9.3 and Docker Compose v5.7.1, and added the user to
+  the `docker` group;
+- created a data-plane certificate, `~/kong-ai/cluster.crt` and `.key`;
+- started `kong/kong-ai-gateway:2.3.0-distroless` as Konnect data plane
+  container `kong-ai-gateway`, published on `127.0.0.1:8000` and
+  `127.0.0.1:8443`;
+- resolved repeated 401 errors until Konnect showed the node Connected and
+  In sync.
+
+The summary also states that a data-plane private key was pasted into that
+conversation, and recommends rotating it.
+
+Assistant-verified in this session:
+
+- The certificate has subject `CN=local-kong-ai` and expires 2027-11-15.
+  Its fingerprint is recorded in `personal/ENVIRONMENT.md`.
+- The assistant's shell is not in the `docker` group, so all Docker
+  commands below were run by the owner.
+
+### Problems found (assistant-verified)
+
+- `127.0.0.1:8000` answered with `Server: kong/2.3.0-ai-gateway`. Kong held
+  vLLM's port: `scripts/serve-nvfp4.sh` could not bind, and pLLM Control
+  reported Kong as an externally running Qwen, because it detects Qwen by an
+  open :8000.
+- On Docker's bridge network, Kong could not reach vLLM, which listens only
+  on the host's loopback.
+
+### Fix: move Kong to host networking on 127.0.0.1:8100
+
+A one-time Python script recreated the container from `docker inspect`
+output. The script lived in the assistant's session scratchpad and is not
+in the repository. It copied the image, `KONG_*` environment, mounts, and
+restart policy, then changed only:
+
+- `--network host`
+- `KONG_PROXY_LISTEN=127.0.0.1:8100`
+- `KONG_ADMIN_LISTEN=off`, `KONG_ADMIN_GUI_LISTEN=off`, `KONG_STATUS_LISTEN=off`
+- `PLLM_VLLM_AUTH=Bearer <contents of .secrets/vllm-api-key>`
+
+The old container was stopped and renamed `kong-ai-gateway-old` for
+rollback. The script's first run aborted on a safety check: the container
+and image working directories differed. Nothing changed. After the script
+was fixed, the owner's second run reported:
+
+```text
+Copied env vars (values hidden): KONG_ADMIN_GUI_LISTEN, KONG_ADMIN_LISTEN,
+  KONG_CLUSTER_CERT, KONG_CLUSTER_CERT_KEY, KONG_CLUSTER_CONTROL_PLANE,
+  KONG_CLUSTER_MTLS, KONG_CLUSTER_SERVER_NAME, KONG_CLUSTER_TELEMETRY_ENDPOINT,
+  KONG_CLUSTER_TELEMETRY_SERVER_NAME, KONG_DATABASE, KONG_KONNECT_MODE,
+  KONG_LUA_SSL_TRUSTED_CERTIFICATE, KONG_PROXY_LISTEN, KONG_ROLE,
+  KONG_STATUS_LISTEN, KONG_VITALS, PLLM_VLLM_AUTH
+Kong answers on http://127.0.0.1:8100 (Server: kong/2.3.0-ai-gateway)
+New listening sockets: 127.0.0.1:8100
+Port 8000 is free for vLLM
+```
+
+Equivalent command for an installer, reconstructed from the script and not
+run verbatim. `<id>` is the Konnect control-plane prefix. The original
+certificate values were copied unchanged; whether they were inline PEM or
+file paths was not recorded. Add `--restart <policy>` only if boot startup
+is wanted.
+
+```bash
+docker run -d --name kong-ai-gateway --network host \
+  -e KONG_ROLE=data_plane -e KONG_DATABASE=off -e KONG_VITALS=off \
+  -e KONG_KONNECT_MODE=on -e KONG_CLUSTER_MTLS=pki \
+  -e KONG_CLUSTER_CONTROL_PLANE=<id>.eu.cp.konghq.com:443 \
+  -e KONG_CLUSTER_SERVER_NAME=<id>.eu.cp.konghq.com \
+  -e KONG_CLUSTER_TELEMETRY_ENDPOINT=<id>.eu.tp.konghq.com:443 \
+  -e KONG_CLUSTER_TELEMETRY_SERVER_NAME=<id>.eu.tp.konghq.com \
+  -e "KONG_CLUSTER_CERT=$(cat ~/kong-ai/cluster.crt)" \
+  -e "KONG_CLUSTER_CERT_KEY=$(cat ~/kong-ai/cluster.key)" \
+  -e KONG_LUA_SSL_TRUSTED_CERTIFICATE=system \
+  -e KONG_PROXY_LISTEN=127.0.0.1:8100 \
+  -e KONG_ADMIN_LISTEN=off -e KONG_ADMIN_GUI_LISTEN=off -e KONG_STATUS_LISTEN=off \
+  -e "PLLM_VLLM_AUTH=Bearer $(cat ~/Projects/pLLM/.secrets/vllm-api-key)" \
+  kong/kong-ai-gateway:2.3.0-distroless
+```
+
+Assistant checks after the move:
+
+- `127.0.0.1:8100` returned `404 no Route matched`, as expected before
+  configuration.
+- Nothing was listening on :8000.
+- Port 8100 refused connections on every non-loopback address: LAN,
+  Tailscale, Docker bridge, and IPv6. The addresses are recorded in
+  `personal/ENVIRONMENT.md`.
+
+### Konnect configuration (owner, Konnect UI)
+
+- Data plane nodes showed `ello-lin`, version 2.3.0: Connected, In sync,
+  Compatible, no errors. The old node was no longer listed. The owner was
+  told to run `docker rm kong-ai-gateway-old`; completion is unconfirmed.
+- Two data-plane certificates are listed: one generated by Konnect and one
+  named `ello-lin`. It was not checked which one matches the local
+  certificate.
+- Model provider `ello-lin-vllm`:
+  - type vLLM;
+  - authentication "Provided by AI gateway", key source "Enter a key";
+  - header `Authorization`, with the recommended value
+    `{vault://env/pllm-vllm-auth}`.
+
+  The form first failed with "Config.auth.params - missing value for auth
+  param". A parameter name was set without a value; the parameter fields
+  must stay empty when only header auth is used.
+- AI model `qwen3.8-27b`:
+  - target provider `ello-lin-vllm`;
+  - upstream URL `http://127.0.0.1:8000/v1/chat/completions`;
+  - recommended base path `/v1`;
+  - OpenAI and Anthropic capabilities left at defaults;
+  - no model alias, no auth strategy, ACL off.
+
+### End-to-end test (assistant, 2026-11-16)
+
+```bash
+curl -s -i http://127.0.0.1:8100/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"model":"qwen3.8-27b","messages":[{"role":"user","content":"Reply with exactly one word: pong"}],"max_tokens":600}'
+```
+
+- Before Qwen started, Kong returned `502 Bad Gateway`: the route matched
+  but the upstream was down.
+- After the owner started Qwen, `/health` returned 200 after about 90 s.
+- The chat through Kong, with no client key, returned HTTP 200:
+  - model `qwen3.8-27b`, content `pong`;
+  - 37 completion tokens, 33 of them reasoning;
+  - `X-Kong-Proxy-Latency: 2`, `X-Kong-Upstream-Latency: 2032` (ms).
+- vLLM directly: `/v1/models` returned 200 with the key and 401 without it.
+- A streaming chat through Kong with a dummy client `Authorization` header
+  returned 63 SSE chunks ending in `[DONE]`, with content `1 2 3 4 5`.
+- Kong `/v1/models` returned `404 no Route matched`.
+
+Conclusion: Kong adds a valid upstream key and overrides any key the client
+sends. The test cannot tell whether Konnect holds the env-vault reference
+or a pasted key; confirm in the provider form.
+
+### Not changed, and follow-ups
+
+- Unchanged: vLLM flags, `scripts/serve-nvfp4.sh`, Open WebUI settings,
+  pLLM Control code, and tests.
+- Open WebUI's persisted connection still points to
+  `http://127.0.0.1:8000/v1` with the vLLM key. The switch steps are in
+  KONG.md, pending the owner.
+- The vLLM API key was printed in an assistant tool output during this
+  session, while reading Open WebUI's settings database. Treat it as
+  exposed; rotation is pending (KONG.md → Operations).
+- The container's restart policy, copied from the original, is unknown.
+  Kong may start with Docker at boot, against the off-by-default boot
+  preference. Check it and align it.
+- Kong is not supervised by pLLM Control, and no repository script creates
+  or recreates the container.
+- Tailnet exposure review (owner discussion): Open WebUI's login is the
+  only check before chat. Other services reachable over Tailscale deserve
+  the same review. Hardening tasks are in TASKS.md.

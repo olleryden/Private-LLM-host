@@ -49,6 +49,18 @@ Optional [phone controls](./PHONE_CONTROL.md) use a separate private URL on
 port 8443 and start with the PC, before desktop login in the selected setup.
 The private control link is active. Qwen and Chat still start on demand.
 
+[Kong AI Gateway](./KONG.md) is an OpenAI-compatible front door to the same
+model, at `http://127.0.0.1:8100/v1` (this PC only). It runs as a Docker
+container, configured from Kong Konnect, Kong's hosted control plane.
+Prompts stay on the PC. Konnect, which holds gateway configuration and
+analytics, is the project's one accepted hosted service. Kong adds the
+vLLM key itself; it will later add per-client keys and access rules.
+Open WebUI still talks to vLLM directly until it is switched over.
+
+Personal or sensitive context, such as account IDs, network details, and
+security findings, belongs in [`personal/`](./personal/README.md). Only that
+folder's README is pushed.
+
 ## Docs
 
 - [`PLAN.md`](./PLAN.md) — phased roadmap and current status. Start here for
@@ -69,3 +81,7 @@ The private control link is active. Qwen and Chat still start on demand.
   optional terminal input, and manual start/stop behavior.
 - [`PHONE_CONTROL.md`](./PHONE_CONTROL.md) — private iPhone controls,
   owner authentication, and optional controller-only startup.
+- [`KONG.md`](./KONG.md) — Kong AI Gateway and Konnect: setup, usage,
+  managing access, and operations.
+- [`personal/`](./personal/README.md) — local-only personal context. Its
+  contents are Git-ignored except the folder README.

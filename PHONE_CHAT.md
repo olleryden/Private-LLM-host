@@ -1,6 +1,6 @@
 # Chat from an iPhone over Tailscale
 
-Last updated: 2026-10-16
+Last updated: 2026-11-16
 
 The first milestone uses the existing Open WebUI application. Chat connects
 to the real local Qwen model. Document search, web search, memory, coding
@@ -115,6 +115,13 @@ Connections. The configured compatible API is:
 The UI backend makes this connection. Do not enter `127.0.0.1:8000` as the
 phone's destination: on the phone, localhost refers to the phone itself.
 Existing UI settings are persisted and can override environment defaults.
+
+Planned change (2026-11-16): route this connection through Kong AI Gateway
+instead of directly to vLLM. Set the base URL to `http://127.0.0.1:8100/v1`,
+the key to a placeholder, and add Model ID `qwen3.8-27b` by hand, because
+Kong does not serve a model list. Chat then also needs the Kong container
+running. The steps are in KONG.md. Until the owner switches, the values
+above remain current.
 
 ## Reinstalling this UI environment
 

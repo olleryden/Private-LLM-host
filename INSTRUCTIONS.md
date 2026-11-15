@@ -36,3 +36,12 @@ Important to:
   The owner chose controller availability before desktop login; its optional
   user service, lingering, and persistent private :8443 route are enabled
   on this PC. New-install defaults still require explicit opt-in.
+* Everything runs on the owner's PC: no cloud models or hosted tools. The one
+  owner-approved exception (2026-11-15) is Kong Konnect as the hosted
+  control plane for the local Kong AI Gateway. It holds configuration and
+  analytics only; prompts and replies stay on the PC. Keep secrets out of
+  Konnect, for example with `{vault://env/...}` references.
+* Pushed docs must not contain secrets, account identifiers, or detailed
+  security findings. Put personal or sensitive context in `personal/`,
+  which is Git-ignored except its README. Read it for extra context when
+  it exists.

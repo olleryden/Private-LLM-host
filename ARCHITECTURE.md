@@ -1,7 +1,8 @@
 # Architecture — Private LLM Host
 
-Last updated: 2026-10-16. This describes the current installation and clearly
-separates unimplemented features. See SETUP_LOG.md for exact commands/fixes.
+Last updated: 2026-11-16 (Kong AI Gateway added). This describes the current
+installation and clearly separates unimplemented features. See SETUP_LOG.md
+for exact commands/fixes.
 
 ## Hardware and model
 
@@ -45,6 +46,71 @@ Open WebUI 0.12.2 runs in separate `.venv-webui` using Python 3.11.16 and
 CPU-only torch 2.14.1. It connects to vLLM server-side, so the phone does not
 need the model API key. CPU-only UI dependencies preserve inference VRAM.
 
+### Local listeners
+
+| Address | Component | Reachable from |
+|---|---|---|
+| `127.0.0.1:8000` | vLLM (OpenAI-compatible API, shared key) | This PC only |
+| `127.0.0.1:8080` | Open WebUI | This PC; tailnet via Serve :443 while sharing runs |
+| `127.0.0.1:8100` | Kong AI Gateway proxy (Docker, host network) | This PC only |
+| `127.0.0.1:8787` | pLLM Control | This PC; tailnet owner via Serve :8443 |
+
+The control app detects Qwen by an open `:8000`. Nothing else may use that
+port.
+
+## Kong AI Gateway (Konnect-managed)
+
+Added 2026-11-15 to 2026-11-16; details in KONG.md and SETUP_LOG.md §22.
+Kong is an optional OpenAI-compatible front door that can add per-client
+keys, ACLs, rate limits, and usage analytics in front of the single-key vLLM
+server.
+
+```text
+Local OpenAI-compatible client (this PC)
+    -> Kong data plane, Docker host network, 127.0.0.1:8100/v1
+         adds Authorization: Bearer <vLLM key> from container env PLLM_VLLM_AUTH
+    -> vLLM 127.0.0.1:8000/v1/chat/completions -> Qwen
+Kong data plane --outbound only--> Kong Konnect (EU): config sync, usage stats
+```
+
+- **Control plane.** Konnect is hosted by Kong. It stores the AI gateway
+  `ello-ai-gateway`, the provider `ello-lin-vllm`, and the model
+  `qwen3.8-27b`. This is the owner-approved exception to local-only
+  operation: configuration and analytics only. Prompts and replies stay on
+  the PC.
+- **Trust boundary.** Konnect account access can change routing (for
+  example, the upstream URL or policies), but cannot open Kong's listener.
+  The listener is set by container environment on the PC. Protect the
+  Konnect login with two-factor authentication.
+- **Secrets.** The vLLM key reaches Kong through a container environment
+  variable, referenced from Konnect as `{vault://env/pllm-vllm-auth}`. The
+  data-plane certificate lives in `~/kong-ai/`.
+- **Current use.** Open WebUI still calls vLLM directly. Routing it through
+  Kong is the planned next step: the base URL becomes `:8100/v1`, with a
+  manual model ID, because Kong does not serve `/v1/models`.
+- **Lifecycle.** Kong runs as a Docker container that pLLM Control does
+  not manage. Its restart policy, and therefore its boot behavior, is still
+  to be checked against the off-by-default boot preference.
+
+### Identity along the request path
+
+Every hop terminates the previous connection and opens a new one, so device
+identity does not travel down the chain:
+
+| Hop | What it can identify |
+|---|---|
+| Tailscale Serve | The tailnet user and device connecting to the PC |
+| Open WebUI | The logged-in Open WebUI account; this login is the user check for chat |
+| Kong (or vLLM directly) | Only Open WebUI: source `127.0.0.1` and one shared key for all users and devices |
+
+Open WebUI can forward `X-OpenWebUI-User-*` and `-Chat-Id` headers when
+`ENABLE_FORWARD_USER_INFO_HEADERS=true`, optionally signed as a JWT. This
+identifies the Open WebUI user, not the device. Per-device identity in Kong
+requires devices to call Kong directly with their own consumer keys.
+Anyone who gets a device onto the owner's tailnet faces Open WebUI's
+password for chat. Other tailnet-reachable services need the same review
+(TASKS.md → Security hardening).
+
 ## What Open WebUI adds around the model
 
 Yes: it is an application layer around the model server. It stores chats,
@@ -87,6 +153,8 @@ The launcher sets DATA_DIR to:
 | Transient caches | `cache/` |
 | Model weights | Separate `models/Qwen3.8-27B-NVFP4-NVIDIA/` |
 | Model API key and app signing secret | Separate ignored `.secrets/` |
+| Kong gateway configuration (provider, model, future consumers) | Kong Konnect (hosted, EU), not on the PC |
+| Kong data-plane certificate/key | `~/kong-ai/` (outside the repository) |
 
 A WebUI “project” is a logical folder grouping chats, with optional default
 model, instructions, and attached knowledge. It is not automatically a real
