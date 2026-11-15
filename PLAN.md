@@ -193,7 +193,8 @@ Kong Konnect is the only hosted service in use, for gateway configuration.
 - KONG.md: Kong AI Gateway/Konnect setup, usage, access management, operations.
 - personal/: local-only context (account IDs, network details, security
   review). Git-ignored except its README; read it when present.
-- README.md: quick entry point. INSTRUCTIONS.md: persistent project preferences.
+- README.md: quick entry point and patch notes. INSTRUCTIONS.md: persistent
+  project preferences.
 
 Detailed setup history remains in SETUP_LOG.md, including the later WebUI
 shutdown and service-control app. Validated inference flags and chat UI

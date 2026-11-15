@@ -45,3 +45,9 @@ Important to:
   security findings. Put personal or sensitive context in `personal/`,
   which is Git-ignored except its README. Read it for extra context when
   it exists.
+* Keep the "Patch notes" section at the end of README.md current. Add a
+  dated entry, newest first, for every notable change, with three parts:
+  "What changed" (brief), "What it means" (practical implications: new
+  abilities, new dependencies, behavior changes, security/privacy
+  trade-offs, risks), and "Still open". Point to SETUP_LOG.md for evidence
+  rather than repeating it.
