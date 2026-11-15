@@ -131,7 +131,8 @@ pointed directly at vLLM does not inherit WebUI history, projects, or memory.
 
 The local pLLM Control app at `127.0.0.1:8787` supervises explicit model,
 chat UI, foreground Serve, and optional workspace-shell instances. It is
-separate from the chat UI and is not exposed by the existing Tailscale route.
+separate from the chat UI. Optional private HTTPS :8443 exposes the control
+app separately from the :443 chat route; it does not depend on chat sharing.
 Its Python-standard-library HTTP backend launches the existing scripts in
 process groups with pseudo-terminals; the buildless frontend shows status,
 health-based readiness, bounded output, and optional line input. No model
@@ -145,15 +146,33 @@ or killed. Sharing retains the original foreground Serve command and can
 request sudo authentication inside its optional terminal.
 
 The backend binds only to loopback and checks host, origin, and a per-launch
-API token. Runtime metadata lives in ignored `.data/control/`; terminal
-transcripts are bounded in memory. This is a local process-control surface,
-not a remotely exposed shell or a full terminal emulator. CONTROL.md explains
-launching, lifecycle, limitations, and command-line alternatives.
+API token. When phone controls are configured, the exact private origin is
+allowed only with the configured owner's Tailscale-User-Login header from
+local Serve. Authentication is checked before serving remote HTML/assets or
+API responses, including terminal logs. The runtime remote.json file is 0600.
+Tailscale Serve strips spoofed peer identity headers and supplies its own.
+The trust boundary is the local proxy; local programs retain existing
+PC-user access. No public Funnel or raw LAN control listener is configured.
+
+Optional pllm-control.service starts only the controller. Pre-login mode
+uses the owner's systemd user manager with lingering; post-login mode is
+also available. A settings toggle enables/disables future controller startup
+without changing current instances. Explicit desktop Quit exits normally
+without crash-policy restart; phone Quit is hidden/blocked to preserve the
+control link. All model/UI launches remain explicit. See PHONE_CONTROL.md.
+
+Runtime metadata lives in ignored `.data/control/`; terminal transcripts
+are bounded in memory. This is a transcript/line-input UI, not a full
+terminal emulator. No extra Python packages are required.
 
 The owner subsequently requested graceful WebUI shutdown, and :8080 was
 verified closed; the model was already stopped. The owner's independent
-Serve terminal was left alone. Boot startup and keep-awake behavior remain
-explicit opt-ins and are not configured by the control app.
+Serve terminal was initially left alone. The owner later resolved that old
+instance. Its app-managed replacement was stopped for the remote-control
+upgrade. Controller startup is an explicit opt-in; model startup and sleep
+behavior remain manual/unchanged. The owner activated the persistent :8443
+route; controller startup and pre-login lingering are now enabled. Real
+HTTPS authentication/API/terminal checks pass; reboot/iPhone tests are pending.
 
 Active decode logs show ~20 tokens/s; owner reports 5–20s to first visible
 text. Tag/follow-up generation are now false; final persisted title setting

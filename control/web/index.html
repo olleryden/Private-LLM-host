@@ -20,6 +20,13 @@
       <main>
         <div class="page-heading"><div><p class="eyebrow">LOCAL WORKSPACE</p><h1>Instances</h1><p class="page-description">One place to run your assistant.</p></div><p class="running-summary" id="running-summary">Checking instances…</p></div>
         <p class="notice connection-error" id="connection-error" role="alert" hidden></p>
+        <details class="control-settings" id="control-settings">
+          <summary>Control settings</summary>
+          <p id="remote-description">Phone controls have not been configured.</p>
+          <label class="checkbox-label"><input type="checkbox" id="control-autostart" disabled> Start control app automatically</label>
+          <p class="field-hint">Only the controls start automatically. Start Qwen and Chat when you need them.</p>
+          <p id="settings-message" role="status" hidden></p>
+        </details>
 
         <div class="workspace">
           <nav class="instance-list" id="instance-list" aria-label="Workspace instances"><p class="loading-state">Loading instances…</p></nav>

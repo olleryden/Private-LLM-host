@@ -819,3 +819,86 @@ Suggested one-time owner cleanup for these specifically observed PIDs:
 send SIGCONT to 94481, then SIGINT, using sudo. These are ephemeral process
 IDs, not reusable installer commands; inspect the exact command before any
 future cleanup. No privileged process was signaled during this inspection.
+
+## 21. Owner-only phone controls and pre-login controller startup — 2026-10-16
+
+Owner requested turning the PC on, then starting/stopping pLLM from an
+iPhone. Owner explicitly chose availability before desktop login.
+Implemented and enabled controller-only startup; model/UI startup remain manual.
+
+- Added `control/remote.py` and `scripts/setup-phone-control.sh` using only
+  the Python standard library. Setup reads the existing Tailscale owner,
+  writes ignored `remote.json` mode0600, installs a user unit, and can
+  enable a separate persistent private controller route on HTTPS :8443.
+- Backend stays on 127.0.0.1:8787. Remote HTML/assets/API/logs require the
+  exact configured origin and owner Tailscale-User-Login header before
+  serving content. Existing per-launch API token and Host/Origin/CSP checks
+  remain. Local Tailscale Serve is the trusted identity proxy.
+- Phone API state uses the private chat hostname for Open Chat instead of
+  the phone's localhost. Remote Quit is hidden/blocked to preserve controls;
+  individual instances retain Start/Stop/input/interrupt.
+- Added collapsed Control settings and an opt-in automatic-start toggle.
+  Enable/disable changes future controller startup without starting models
+  or stopping the current session. Fresh installs remain opted out.
+- Unit: `~/.config/systemd/user/pllm-control.service`, running as owner,
+  ExecStart `/usr/bin/python3 .../control/server.py`, Restart=on-failure,
+  normal Quit exits without restart. User lingering supports pre-login use.
+
+Preparation/validation commands:
+
+```bash
+bash scripts/setup-phone-control.sh --prepare-only
+systemd-analyze --user verify ~/.config/systemd/user/pllm-control.service
+```
+
+Initial unit validation found quoted WorkingDirectory was interpreted as
+a literal non-absolute path. Removed that quoting while retaining ExecStart
+argument quoting, percent escaping, and newline rejection; regenerated and
+revalidated successfully. Unit installation does not enable/start it by itself.
+
+The previously app-managed foreground chat-sharing session was gracefully
+stopped to reload the controller. Qwen/Chat were already stopped. The
+validated controller was manually started through its user service.
+No model settings, existing chat data, or sleep settings were changed.
+
+Initial `sudo -n tailscale serve --bg --https=8443 ...` could not proceed:
+Ubuntu required the owner's password. Owner initially reported completion,
+but checks still showed no route, unit disabled, lingering=no. After explicit
+pre-login preference confirmation, controller autostart/lingering were enabled
+using the implemented opt-in function; it succeeded without a password prompt.
+Owner then ran this final privileged route command on the desktop:
+
+```bash
+sudo tailscale serve --bg --https=8443 http://127.0.0.1:8787
+```
+
+Read-only status then confirmed persistent HTTPS :8443 proxy configuration.
+The independent :443 chat-sharing instance stays manual and is stopped.
+Tailscale's daemon is enabled for boot; the control user service is enabled,
+active, and has pre-login lingering enabled.
+
+Final verification:
+
+```bash
+/usr/bin/python3 -m unittest discover -s tests -v
+systemctl --user is-enabled pllm-control.service
+systemctl --user is-active pllm-control.service
+loginctl show-user olleryden -p Linger
+tailscale serve status --json
+```
+
+31 integration tests passed in 8.836s. Added owner/missing/other identity,
+remote Host/Origin/token, phone-safe chat URL, remote-Quit protection, default
+opt-out, and startup toggle tests. A first final run encountered a test-only
+/proc liveness race (ProcessLookupError as a disposable child exited); fixed
+the helper to treat that as already gone, then all tests passed. Production
+process enumeration already handled disappearing processes.
+
+Live real HTTPS requests to `https://ello-lin.tailad2999.ts.net:8443` returned
+page HTTP200 and authenticated API access through actual Serve identity
+headers. Settings reported remote=true, autostart=true, before_login=true.
+A harmless workspace shell was started over HTTPS, accepted a printf,
+returned exact output, and stopped cleanly. No Qwen/WebUI generation or GPU
+workload was started. Final managed model/UI/sharing/shell states are stopped.
+This validates the real private route from the PC, not a physical iPhone or
+reboot. Those acceptance checks remain open in TASKS.md and PHONE_CONTROL.md.

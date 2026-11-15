@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/olleryden/Projects/pLLM/.archify/architecture-pllm-20261108-213029/candidate.json",
+    "sha256": "3fb6cbcc9dcbd368d5cdbbe19357e4dce2182c5e2b5a250603afd99533c198d6",
+    "bytes": 6786
+  },
+  "artifact": {
+    "path": "/home/olleryden/Projects/pLLM/.archify/architecture-pllm-20261108-213029/pllm-architecture.html",
+    "sha256": "eff024617704189d58409806fa80f38035e862f78334e5ff35ea21d4efb4795d",
+    "bytes": 860944
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/olleryden/Projects/pLLM/.archify/architecture-pllm-20261108-213029/pllm-architecture.finalize.json",
+    "summaryReceipt": "/home/olleryden/Projects/pLLM/.archify/architecture-pllm-20261108-213029/pllm-architecture.finalize-summary.json",
+    "browserCheckReceipt": "/home/olleryden/Projects/pLLM/.archify/architecture-pllm-20261108-213029/pllm-architecture.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-11-08T20:31:15.826Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 2677,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

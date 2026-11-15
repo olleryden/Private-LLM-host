@@ -895,3 +895,7 @@ select {
     transition:none!important
   }
 }
+/* Optional lifecycle settings; the instance list remains the primary view. */
+.control-settings { margin: 0 0 24px; padding: 14px 18px; border: 1px solid var(--border, #39313b); border-radius: 10px; color: var(--muted, #aaa0ad); font-size: 13px; }
+.control-settings summary { cursor: pointer; color: var(--text, #ece5ed); }
+.control-settings p { line-height: 1.6; overflow-wrap: anywhere; }

@@ -93,20 +93,25 @@ bash scripts/start-control.sh --stop
 bash scripts/start-control.sh --stop-all
 ```
 
-Boot startup and changes to sleep behavior remain off/unconfigured.
+Automatic startup of the lightweight controller is now an explicit option
+under Control settings, after one-time phone-control setup. Qwen and Chat
+remain manual. Sleep behavior is unchanged.
 
-## Local scope and files
+## Private access and files
 
-The manager binds only to `127.0.0.1:8787`. The existing Tailscale route
-continues to expose the chat UI on port 8080, not this process-control app.
-Its controls execute programs as your Linux user, so keep this dashboard
-local. API requests use a per-launch token and host/origin checks.
+The manager binds only to `127.0.0.1:8787`. Optional owner-restricted
+Tailscale Serve on HTTPS :8443 exposes the controls to your own devices;
+chat sharing stays on :443 → :8080. Tailscale identity headers are checked
+before remote page/API access. API tokens and strict host/origin checks
+remain. See [PHONE_CONTROL.md](./PHONE_CONTROL.md) for setup and phone use.
 
 The Python-standard-library backend and buildless frontend need no new
 environment or downloaded dependencies. Runtime metadata and the manager's
 small diagnostic log live in ignored `.data/control/`; terminal transcripts
 are not written there. Keep WebUI data/secrets in their existing locations.
 
-The launcher uses a detached process rather than a boot service. If the
-manager is deliberately shut down, its managed processes are stopped too.
-Unexpected crashes or power loss are not an automatic recovery system.
+The desktop launcher can use a detached process. Optional user-service
+startup runs only the controller, with failure recovery for the controller;
+it never restores running models automatically. Deliberately quitting the
+manager stops its managed processes. The phone interface keeps Quit hidden
+and blocks its endpoint to preserve remote reachability.

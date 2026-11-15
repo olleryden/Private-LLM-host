@@ -29,8 +29,9 @@ setup evidence for a guided installer after the system is useful and stable.
   `https://ello-lin.tailad2999.ts.net` to local UI :8080. Tailnet chat requests
   appear in logs. An explicit iPhone-over-cellular acceptance test remains open.
 - **Lifecycle update:** WebUI was then gracefully stopped at the owner's
-  request and port :8080 verified closed. Model :8000 was already stopped;
-  the external foreground Serve session is owned by the owner's terminal.
+  request and port :8080 verified closed. Model :8000 was already stopped.
+  The owner then cleared the old sharing command and started sharing in the
+  app. It was gracefully stopped while loading protected phone controls.
 - **Control app:** a small local dashboard on :8787 now manages explicit
   model/UI/Serve starts and stops, shows readiness, and offers optional
   terminal output/input plus a workspace shell. Existing external instances
@@ -42,8 +43,13 @@ setup evidence for a guided installer after the system is useful and stable.
   found paused on pts/5, reparented to the user system manager, with its
   foreground route still present. It has no visible original terminal.
   External state wording now says “Detected outside app,” with unknown
-  uptime shown as a dash. Clearing that privileged old process remains an
-  owner action; no sharing process was stopped during this inspection.
+  uptime shown as a dash. The owner subsequently resolved this old instance.
+- **Phone controller requested:** owner-restricted HTTPS :8443 → controller
+  :8787, opt-in controller-only startup setting, and user service implemented.
+  Owner chose availability before desktop login. Unit is enabled/running,
+  lingering is enabled, and the owner activated the persistent route.
+  Real HTTPS page/API and shell start/input/stop pass. See PHONE_CONTROL.md.
+  Qwen and Chat stay manual; iPhone/cellular/reboot tests remain pending.
 - **Performance concern:** owner reports 5–20s to first text; active decode
   log windows are about 20 tokens/s. Direct controlled latency comparison is
   pending. External single-5090 reports show faster results with differing
@@ -70,6 +76,8 @@ data migration/export plan, while the same vLLM model can be reused.
 
 1. Open pLLM Control and use it for explicit service startup. Confirm actual
    model/UI readiness and optional sharing; no instance starts just by opening it.
+   Verify the now-active :8443 control link on the iPhone and after a real
+   reboot. The control app is configured to start before desktop login.
 2. Reconcile the title-generation toggle. Measure direct streamed latency
    and decode speed with fixed short prompts, then compare the UI.
 3. Test compilation/CUDA graphs on the same checkpoint as an isolated

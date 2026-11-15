@@ -30,6 +30,10 @@ connected by this setup.
 
 ## Start from one control app
 
+From the iPhone, the private controller is now also available at
+<https://ello-lin.tailad2999.ts.net:8443>. It is configured to start before
+desktop login; Qwen and Chat remain manual. See [PHONE_CONTROL.md](./PHONE_CONTROL.md).
+
 ```bash
 cd ~/Projects/pLLM
 bash scripts/start-control.sh

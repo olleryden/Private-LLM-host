@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Example: Central MCP Tools & Skills Platform",
+    "output": ".archify/architecture-mcp-platform-20261108-215326/mcp-platform.html",
+    "quality_profile": "showcase",
+    "locale": "en"
+  },
+  "components": [
+    { "id": "coding", "type": "external", "label": "Coding agents", "sublabel": "Claude Code / Cursor", "pos": [285, 40], "size": [150, 64] },
+    { "id": "chat", "type": "external", "label": "Chat apps", "sublabel": "Teams · web chat", "pos": [495, 40], "size": [150, 64] },
+    { "id": "custom", "type": "external", "label": "Custom agents", "sublabel": "Pydantic AI · Agent Fwk", "pos": [740, 40], "size": [150, 64] },
+
+    { "id": "entra", "type": "security", "label": "Entra ID", "sublabel": "OAuth 2.1 · user identity", "pos": [40, 180], "size": [150, 64] },
+    { "id": "gateway", "type": "security", "label": "AI Gateway (APIM, in Foundry)", "sublabel": "one entry for models + MCP · keys, quotas, policies, logs", "pos": [285, 180], "size": [605, 64] },
+    { "id": "ci", "type": "external", "label": "Git + CI", "sublabel": "review, validate, publish", "pos": [1005, 180], "size": [150, 64] },
+
+    { "id": "foundry", "type": "cloud", "label": "Foundry models", "sublabel": "deployments + router", "pos": [285, 320], "size": [150, 64] },
+    { "id": "sandbox", "type": "backend", "label": "Code sandbox", "sublabel": "ACA dynamic sessions", "pos": [495, 320], "size": [150, 64] },
+    { "id": "hub", "type": "backend", "label": "MCP hub", "sublabel": "FastMCP 3 · mount/proxy", "tag": "Pydantic schemas", "pos": [740, 320], "size": [150, 64] },
+    { "id": "registry", "type": "backend", "label": "Registry", "sublabel": "tools + skills · FastAPI", "tag": "Pydantic models", "pos": [1005, 320], "size": [150, 64] },
+
+    { "id": "domain", "type": "backend", "label": "Domain MCP servers", "sublabel": "FastMCP · team-owned", "pos": [740, 460], "size": [150, 64] },
+    { "id": "store", "type": "database", "label": "Registry store", "sublabel": "Postgres + pgvector, Blob", "pos": [1005, 460], "size": [150, 64] },
+
+    { "id": "systems", "type": "external", "label": "Systems of record", "sublabel": "CRM · ERP · warehouse", "pos": [740, 600], "size": [150, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Company Azure tenant · central platform", "wraps": ["entra", "gateway", "ci", "foundry", "sandbox", "hub", "registry", "domain", "store"] }
+  ],
+  "connections": [
+    { "id": "coding-in", "from": "coding", "to": "gateway", "label": "MCP + LLM API" },
+    { "id": "chat-in", "from": "chat", "to": "gateway", "label": "MCP + LLM API" },
+    { "id": "custom-in", "from": "custom", "to": "gateway", "label": "MCP + LLM API" },
+    { "id": "auth", "from": "gateway", "to": "entra", "label": "OAuth check", "variant": "security" },
+    { "id": "model-calls", "from": "gateway", "to": "foundry", "label": "model calls", "variant": "emphasis" },
+    { "id": "mcp-calls", "from": "gateway", "to": "hub", "label": "MCP (governed)", "variant": "emphasis" },
+    { "id": "run-scripts", "from": "hub", "to": "sandbox", "label": "run scripts" },
+    { "id": "load-defs", "from": "hub", "to": "registry", "label": "tools & skills" },
+    { "id": "mount", "from": "hub", "to": "domain", "label": "mount / proxy" },
+    { "id": "obo", "from": "domain", "to": "systems", "label": "as the user (OBO)", "variant": "security" },
+    { "id": "persist", "from": "registry", "to": "store", "label": "SQL + vectors" },
+    { "id": "publish", "from": "ci", "to": "registry", "label": "publish" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Harness-agnostic", "items": [
+      "Harnesses need only two standards: MCP for tools/skills and an LLM API (OpenAI or Anthropic format)",
+      "Each harness keeps its own agent loop; swap harnesses without touching tools",
+      "Skills served as skill:// resources reach any MCP client, even without native skill support"
+    ] },
+    { "dot": "emerald", "title": "FastMCP hub", "items": [
+      "Mounts team servers and proxies remote ones under namespaces",
+      "Builds its tool and skill catalog from the registry; offers search_tools so harnesses load only what they need",
+      "Per-tool require_scopes plus AuthMiddleware on top of gateway policy"
+    ] },
+    { "dot": "violet", "title": "Where Pydantic fits", "items": [
+      "Tool input/output models become JSON Schema and are validated on every call",
+      "Registry records (ToolSpec, SkillManifest) validated in CI and again at load",
+      "pydantic-settings for service configuration"
+    ] },
+    { "dot": "amber", "title": "Other typical dependencies", "items": [
+      "Uvicorn/Starlette (MCP over HTTP), httpx (proxying), SQLAlchemy + asyncpg (registry)",
+      "azure-identity for managed identity and on-behalf-of tokens",
+      "OpenTelemetry to Azure Monitor for traces of model and tool calls"
+    ] },
+    { "dot": "rose", "title": "Caveats", "items": [
+      "APIM AI Gateway tier is in public preview; Foundry applies gateway routing only to tools created after linking",
+      "Skills over MCP is experimental (SEP-2640) and few hosts support it yet"
+    ] }
+  ]
+}

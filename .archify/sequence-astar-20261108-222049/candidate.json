@@ -1,0 +1,403 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Example: Search A*, then Write astar.py",
+    "output": ".archify/sequence-astar-20261108-222049/astar-sequence.html",
+    "quality_profile": "showcase",
+    "locale": "en"
+  },
+  "participants": [
+    {
+      "id": "files",
+      "type": "database",
+      "label": "Local files",
+      "sublabel": "Local · astar.py"
+    },
+    {
+      "id": "user",
+      "type": "external",
+      "label": "Developer",
+      "sublabel": "Local · laptop"
+    },
+    {
+      "id": "harness",
+      "type": "frontend",
+      "label": "Harness",
+      "sublabel": "Local · agent"
+    },
+    {
+      "id": "gateway",
+      "type": "security",
+      "label": "AI Gateway",
+      "sublabel": "Central · APIM"
+    },
+    {
+      "id": "model",
+      "type": "cloud",
+      "label": "LLM",
+      "sublabel": "Central · Foundry"
+    },
+    {
+      "id": "hub",
+      "type": "backend",
+      "label": "MCP hub + tools",
+      "sublabel": "Central · FastMCP"
+    },
+    {
+      "id": "registry",
+      "type": "database",
+      "label": "Registry",
+      "sublabel": "Central · catalog"
+    },
+    {
+      "id": "google",
+      "type": "external",
+      "label": "Google Search",
+      "sublabel": "External · API"
+    }
+  ],
+  "segments": [
+    {
+      "from": 148,
+      "to": 340,
+      "label": "Session start · tool discovery"
+    },
+    {
+      "from": 358,
+      "to": 524,
+      "label": "Turn 1 · model asks to search"
+    },
+    {
+      "from": 542,
+      "to": 720,
+      "label": "Search via MCP (central → external)"
+    },
+    {
+      "from": 726,
+      "to": 1008,
+      "label": "Turn 2 · explain, then write locally"
+    },
+    {
+      "from": 1022,
+      "to": 1160,
+      "label": "Turn 3 · finish"
+    }
+  ],
+  "messages": [
+    {
+      "id": "list-tools",
+      "from": "harness",
+      "to": "gateway",
+      "y": 160,
+      "label": "MCP tools/list + token",
+      "variant": "security",
+      "note": "Gateway validates the Entra token"
+    },
+    {
+      "id": "list-forward",
+      "from": "gateway",
+      "to": "hub",
+      "y": 216,
+      "label": "forward"
+    },
+    {
+      "id": "registry-read",
+      "from": "hub",
+      "to": "registry",
+      "y": 244,
+      "label": "enabled tools",
+      "note": "Normally cached in the hub"
+    },
+    {
+      "id": "registry-entries",
+      "from": "registry",
+      "to": "hub",
+      "y": 300,
+      "label": "tool entries",
+      "variant": "return"
+    },
+    {
+      "id": "tool-schemas",
+      "from": "hub",
+      "to": "harness",
+      "y": 328,
+      "label": "tool schemas (via gateway)",
+      "variant": "return"
+    },
+    {
+      "id": "prompt",
+      "from": "user",
+      "to": "harness",
+      "y": 372,
+      "label": "prompt: A* + astar.py",
+      "variant": "emphasis"
+    },
+    {
+      "id": "chat-1",
+      "from": "harness",
+      "to": "gateway",
+      "y": 400,
+      "label": "chat request + tools",
+      "variant": "emphasis",
+      "note": "Tools: search_web (MCP) + local file tools"
+    },
+    {
+      "id": "chat-1-forward",
+      "from": "gateway",
+      "to": "model",
+      "y": 456,
+      "label": "forward"
+    },
+    {
+      "id": "call-search",
+      "from": "model",
+      "to": "gateway",
+      "y": 484,
+      "label": "tool_call search_web",
+      "variant": "return"
+    },
+    {
+      "id": "call-search-back",
+      "from": "gateway",
+      "to": "harness",
+      "y": 512,
+      "label": "tool_call",
+      "variant": "return"
+    },
+    {
+      "id": "mcp-call",
+      "from": "harness",
+      "to": "gateway",
+      "y": 556,
+      "label": "MCP tools/call"
+    },
+    {
+      "id": "mcp-scope",
+      "from": "gateway",
+      "to": "hub",
+      "y": 584,
+      "label": "check scope, forward",
+      "variant": "security"
+    },
+    {
+      "id": "google-query",
+      "from": "hub",
+      "to": "google",
+      "y": 612,
+      "label": "search query",
+      "note": "Search server holds the API key"
+    },
+    {
+      "id": "google-results",
+      "from": "google",
+      "to": "hub",
+      "y": 680,
+      "label": "results",
+      "variant": "return"
+    },
+    {
+      "id": "tool-result",
+      "from": "hub",
+      "to": "harness",
+      "y": 708,
+      "label": "validated result (via gateway)",
+      "variant": "return"
+    },
+    {
+      "id": "chat-2",
+      "from": "harness",
+      "to": "gateway",
+      "y": 740,
+      "label": "history + results",
+      "variant": "emphasis",
+      "note": "Search results are untrusted text"
+    },
+    {
+      "id": "chat-2-forward",
+      "from": "gateway",
+      "to": "model",
+      "y": 796,
+      "label": "forward"
+    },
+    {
+      "id": "call-write",
+      "from": "model",
+      "to": "gateway",
+      "y": 824,
+      "label": "explanation + write_file",
+      "variant": "return"
+    },
+    {
+      "id": "call-write-back",
+      "from": "gateway",
+      "to": "harness",
+      "y": 852,
+      "label": "response",
+      "variant": "return"
+    },
+    {
+      "id": "show-explanation",
+      "from": "harness",
+      "to": "user",
+      "y": 880,
+      "label": "A* explanation",
+      "variant": "return"
+    },
+    {
+      "id": "ask-approval",
+      "from": "harness",
+      "to": "user",
+      "y": 908,
+      "label": "approve write?",
+      "variant": "security"
+    },
+    {
+      "id": "approve",
+      "from": "user",
+      "to": "harness",
+      "y": 936,
+      "label": "approve",
+      "variant": "security"
+    },
+    {
+      "id": "write-file",
+      "from": "harness",
+      "to": "files",
+      "y": 964,
+      "label": "write astar.py",
+      "variant": "emphasis",
+      "note": "Local tool: never touches MCP or the hub"
+    },
+    {
+      "id": "chat-3",
+      "from": "harness",
+      "to": "gateway",
+      "y": 1036,
+      "label": "write result"
+    },
+    {
+      "id": "chat-3-forward",
+      "from": "gateway",
+      "to": "model",
+      "y": 1064,
+      "label": "forward"
+    },
+    {
+      "id": "final",
+      "from": "model",
+      "to": "gateway",
+      "y": 1092,
+      "label": "final summary",
+      "variant": "return"
+    },
+    {
+      "id": "final-back",
+      "from": "gateway",
+      "to": "harness",
+      "y": 1120,
+      "label": "summary",
+      "variant": "return"
+    },
+    {
+      "id": "done",
+      "from": "harness",
+      "to": "user",
+      "y": 1148,
+      "label": "done: astar.py",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "harness",
+      "from": 155,
+      "to": 1154,
+      "type": "frontend"
+    },
+    {
+      "participant": "hub",
+      "from": 211,
+      "to": 333,
+      "type": "backend"
+    },
+    {
+      "participant": "registry",
+      "from": 239,
+      "to": 305,
+      "type": "database"
+    },
+    {
+      "participant": "model",
+      "from": 451,
+      "to": 489,
+      "type": "cloud"
+    },
+    {
+      "participant": "hub",
+      "from": 579,
+      "to": 713,
+      "type": "backend"
+    },
+    {
+      "participant": "google",
+      "from": 607,
+      "to": 685,
+      "type": "external"
+    },
+    {
+      "participant": "model",
+      "from": 791,
+      "to": 829,
+      "type": "cloud"
+    },
+    {
+      "participant": "files",
+      "from": 959,
+      "to": 984,
+      "type": "database"
+    },
+    {
+      "participant": "model",
+      "from": 1059,
+      "to": 1097,
+      "type": "cloud"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Local (developer's machine)",
+      "items": [
+        "Harness runs the tool loop, asks for approval, and shows answers",
+        "Writing astar.py is a built-in harness tool on local files",
+        "Running tests would also be local, as another model round"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Central platform",
+      "items": [
+        "Gateway: token check, quotas and logging on every model and MCP call",
+        "LLM: decides which tool to call and writes the code",
+        "Hub + registry: tool discovery and routing to team tool servers (here the search server); registry is consulted at discovery, not per call"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "External",
+      "items": [
+        "Google is called only by the search server, with its own API key",
+        "Harness and model never see the key"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "What leaves the laptop",
+      "items": [
+        "Prompt, search results and generated code pass through the gateway to the model",
+        "Files leave only as model context, never through MCP"
+      ]
+    }
+  ]
+}

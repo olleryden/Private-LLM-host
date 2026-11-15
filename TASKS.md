@@ -13,13 +13,29 @@ not claims that every component is currently running.
 - [x] Keep starts explicit, use readiness checks, and report external
       instances without killing/adopting arbitrary processes.
 - [x] Add detached launch/reopen and explicit quit behavior; closing a browser
-      tab does not stop instances. No boot service or keep-awake changes.
+      tab does not stop instances. Hosting stays manual; no keep-awake changes.
 - [x] Add an Ubuntu Applications launcher; validate process/API behavior
       with disposable children and the live workspace terminal.
 - [ ] Owner acceptance: start/stop the real Qwen and chat services in the app,
       enter sudo password for sharing if requested, and chat from the iPhone.
 - [ ] Evaluate a full terminal emulator only if the transcript/line input
       is insufficient. Full-screen terminal apps currently need a terminal.
+
+## Phone control and controller-only startup
+
+- [x] Add a distinct private control origin on HTTPS :8443 with exact
+      Tailscale owner-identity checks, local binding, API token, Host/Origin
+      restrictions, and mobile chat links using the PC's private hostname.
+- [x] Add an optional controller startup checkbox; install/validate a user
+      service that starts no model/UI. Keep defaults off until explicit setup.
+- [x] Manually start the validated user service and test security/lifecycle
+      with disposable children. Full suite: 31 passing tests.
+- [x] Owner chooses pre-login controls and activates persistent :8443 route;
+      enable user service and lingering. Controller runs without Qwen/Chat.
+- [x] Verify actual owner identity through Tailscale HTTPS, remote API,
+      mobile chat URL, and harmless shell start/input/output/stop.
+- [ ] Verify iPhone/cellular start/stop, real reboot behavior, and actual
+      controller availability before desktop login.
 
 ## Next session — responsiveness and client choice
 
@@ -114,8 +130,9 @@ not claims that every component is currently running.
 
 - [x] Add Start/Stop and visible state in a separate minimal local control app;
       define browser-close and explicit application-quit behavior.
-- [ ] Optional “Start on boot” setting off by default; test both settings
-      and deliberate stop without an unwanted crash-policy restart.
+- [x] Add optional controller-only automatic startup setting, off by default.
+- [ ] Test actual enabled/disabled reboot behavior and deliberate controller
+      quit without unwanted restart. Models remain manual in both modes.
 - [ ] Offer explicit keep-awake behavior while hosting; preserve normal
       sleep preferences. Wake-on-LAN is deferred.
 - [ ] Test readiness, crash recovery, bounded logs, and reconnects.

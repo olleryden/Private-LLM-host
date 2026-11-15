@@ -32,6 +32,31 @@
     } finally { clearTimeout(timer); }
   }
   function post(path, data = {}) { return api(path, { method: "POST", body: JSON.stringify(data) }); }
+  async function loadSettings() {
+    try {
+      const settings = await api("/api/settings");
+      $("control-autostart").checked = settings.autostart;
+      $("control-autostart").disabled = !settings.configured;
+      $("quit-button").hidden = Boolean(settings.remote);
+      $("remote-description").textContent = settings.configured
+        ? `Private phone controls: ${settings.url}. Uses your Tailscale account. Automatic startup is ${settings.before_login ? "available before desktop login" : "after desktop login"}.`
+        : "Phone controls need one-time setup on this PC. See PHONE_CONTROL.md.";
+    } catch (error) {
+      $("remote-description").textContent = "Control settings unavailable. Reload after restarting the control app.";
+    }
+  }
+  $("control-autostart").addEventListener("change", async () => {
+    const field = $("control-autostart");
+    const requested = field.checked;
+    field.disabled = true;
+    try {
+      await post("/api/settings", { autostart: requested });
+      $("settings-message").textContent = requested ? "Control-app automatic startup enabled." : "Automatic startup disabled. This session stays running.";
+    } catch (error) {
+      field.checked = !requested;
+      $("settings-message").textContent = error.message;
+    } finally { field.disabled = false; $("settings-message").hidden = false; }
+  });
   function selected() { return state.services.find((service) => service.id === state.selected); }
   function outputFor(id) {
     if (!state.outputs.has(id)) state.outputs.set(id, { next: 0, text: "", seen: false });
@@ -268,5 +293,6 @@
     }
   });
   setInterval(pollOutput, 1000);
+  loadSettings();
   pollState();
 })();

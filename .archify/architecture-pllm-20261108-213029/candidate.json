@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "pLLM — Private LLM Host",
+    "output": ".archify/architecture-pllm-20261108-213029/pllm-architecture.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "git@github.com:olleryden/Private-LLM-host.git",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "1e003927cb34a03b1bb3d68ab5a9877daabb94b9"
+    }
+  },
+  "components": [
+    { "id": "phone", "type": "external", "label": "Phone", "sublabel": "iPhone + Tailscale", "pos": [40, 340], "size": [150, 64] },
+    { "id": "desktop-user", "type": "external", "label": "Desktop user", "sublabel": "app menu / terminal", "pos": [510, 650], "size": [150, 64] },
+
+    { "id": "webui-data", "type": "database", "label": "WebUI data", "sublabel": ".data/open-webui (SQLite)", "pos": [510, 40], "size": [150, 64],
+      "sources": [{ "path": "scripts/serve-webui.sh", "line": 28, "end_line": 32, "label": "DATA_DIR" }] },
+    { "id": "weights", "type": "database", "label": "Model weights", "sublabel": "models/ (NVFP4 + FP8)", "pos": [770, 40], "size": [150, 64],
+      "sources": [{ "path": "scripts/serve-nvfp4.sh", "line": 40, "end_line": 47, "label": "checkpoint + API key" }] },
+
+    { "id": "serve-chat", "type": "security", "label": "Tailscale Serve", "sublabel": "private HTTPS :443", "pos": [260, 190], "size": [150, 64],
+      "sources": [{ "path": "control/server.py", "line": 547, "end_line": 553, "label": "sharing instance" }] },
+    { "id": "webui", "type": "frontend", "label": "Open WebUI", "sublabel": "127.0.0.1:8080", "pos": [510, 190], "size": [150, 64],
+      "sources": [{ "path": "scripts/serve-webui.sh", "line": 31, "end_line": 54 }] },
+    { "id": "vllm", "type": "backend", "label": "vLLM · Qwen3.8-27B", "sublabel": "127.0.0.1:8000 · NVFP4", "pos": [770, 190], "size": [150, 64],
+      "sources": [{ "path": "scripts/serve-nvfp4.sh", "line": 44, "end_line": 61 }] },
+    { "id": "checks", "type": "backend", "label": "Check scripts", "sublabel": "check-nvfp4 / long-ctx", "pos": [1000, 190], "size": [150, 64],
+      "sources": [
+        { "path": "scripts/check-nvfp4.py", "line": 1, "end_line": 30 },
+        { "path": "scripts/check-long-context.py", "line": 1, "end_line": 22 }
+      ] },
+
+    { "id": "control", "type": "backend", "label": "pLLM Control server", "sublabel": "control/server.py · 127.0.0.1:8787 · token + Host/Origin checks", "pos": [260, 340], "size": [660, 64],
+      "sources": [
+        { "path": "control/server.py", "line": 529, "end_line": 559, "label": "managed instances" },
+        { "path": "control/server.py", "line": 606, "end_line": 622, "label": "origin + token checks" }
+      ] },
+    { "id": "shell", "type": "backend", "label": "Workspace shell", "sublabel": "optional bash · PTY", "pos": [1000, 340], "size": [150, 64],
+      "sources": [{ "path": "control/server.py", "line": 554, "end_line": 558 }] },
+
+    { "id": "serve-control", "type": "security", "label": "Tailscale Serve", "sublabel": "HTTPS :8443 → :8787", "tag": "uncommitted", "pos": [260, 490], "size": [150, 64] },
+    { "id": "launcher", "type": "backend", "label": "Launcher", "sublabel": "launcher.py (detached)", "pos": [510, 490], "size": [150, 64],
+      "sources": [
+        { "path": "scripts/start-control.sh", "line": 1, "end_line": 5 },
+        { "path": "control/launcher.py", "line": 96, "end_line": 128 }
+      ] },
+    { "id": "control-ui", "type": "frontend", "label": "Control web UI", "sublabel": "control/web · buildless", "pos": [770, 490], "size": [150, 64],
+      "sources": [{ "path": "control/web/app.js", "line": 25, "end_line": 25, "label": "token-authenticated fetch" }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Home PC · Ubuntu · RTX 5090", "wraps": ["webui-data", "weights", "serve-chat", "webui", "vllm", "checks", "control", "shell", "serve-control", "launcher", "control-ui"] }
+  ],
+  "connections": [
+    { "id": "phone-chat", "from": "phone", "to": "serve-chat", "label": "HTTPS (tailnet)", "variant": "emphasis" },
+    { "id": "serve-proxy", "from": "serve-chat", "to": "webui", "label": "proxy :8080", "variant": "emphasis" },
+    { "id": "webui-model", "from": "webui", "to": "vllm", "label": "/v1 + API key", "variant": "emphasis" },
+    { "id": "webui-store", "from": "webui", "to": "webui-data", "label": "chats, accounts" },
+    { "id": "vllm-load", "from": "vllm", "to": "weights", "label": "load" },
+    { "id": "checks-test", "from": "checks", "to": "vllm", "label": "test /v1" },
+
+    { "id": "start-serve", "from": "control", "to": "serve-chat", "label": "sudo tailscale serve" },
+    { "id": "start-webui", "from": "control", "to": "webui", "label": "serve-webui.sh" },
+    { "id": "start-model", "from": "control", "to": "vllm", "label": "serve-nvfp4.sh" },
+    { "id": "start-shell", "from": "control", "to": "shell", "label": "PTY" },
+
+    { "id": "phone-controls", "from": "phone", "to": "serve-control", "label": "controls" },
+    { "id": "remote-auth", "from": "serve-control", "to": "control", "label": "owner login check" },
+    { "id": "user-launch", "from": "desktop-user", "to": "launcher", "label": "opens" },
+    { "id": "launcher-spawn", "from": "launcher", "to": "control", "label": "spawns" },
+    { "id": "launcher-open", "from": "launcher", "to": "control-ui", "label": "xdg-open" },
+    { "id": "ui-api", "from": "control-ui", "to": "control", "label": "/api + token" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Chat path", "items": [
+      "Phone reaches Open WebUI only through private Tailscale Serve; no Funnel or port forwarding",
+      "WebUI calls vLLM server-side with the key from .secrets/, so the phone never holds it",
+      "One active request; context set at launch (32K script default, 131K from the control app)"
+    ] },
+    { "dot": "emerald", "title": "Control plane", "items": [
+      "Nothing hosts automatically: Qwen, Chat and Sharing start only when requested",
+      "Instances run as PTY process groups with bounded transcripts; external ones are observed, not killed",
+      "Runtime metadata (port, token) lives in .data/control/server.json"
+    ] },
+    { "dot": "amber", "title": "Uncommitted phone controls", "items": [
+      "control/remote.py + scripts/setup-phone-control.sh are untracked, so not source-linked",
+      "Requests via :8443 must carry the owner's Tailscale-User-Login header",
+      "Optional pllm-control.service (systemd user + lingering) starts only the controller"
+    ] },
+    { "dot": "slate", "title": "Not built yet", "items": [
+      "Retrieval, memory, web search and code execution are disabled in serve-webui.sh",
+      "No coding client, tool runner or backup procedure yet"
+    ] }
+  ]
+}

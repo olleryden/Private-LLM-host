@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "a46620d3-52ba-43b0-9f9a-f583cbd5588c",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/home/olleryden/Projects/pLLM/.archify/sequence-astar-20261108-222049/candidate.json",
+  "output": "/home/olleryden/Projects/pLLM/.archify/sequence-astar-20261108-222049/astar-sequence.html",
+  "specification": {
+    "sha256": "5ff7cbdabe8152a64077d35c7186613a16f26a8234563253eae1607eb3a0477a",
+    "bytes": 8579
+  },
+  "artifact": {
+    "sha256": "a2df4d3a4466810d7509eb621886f3faee48a8e975aba2231eb2cac1ced0697c",
+    "bytes": 859191
+  }
+}

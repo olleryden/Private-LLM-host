@@ -20,8 +20,10 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
-from control.server import APIError, ControlHTTPServer, Manager, ServiceSpec
+from control.server import APIError, ControlHTTPServer, Manager, Service, ServiceSpec
+from control import remote
 
 
 def wait_for(predicate, timeout=6.0, description="condition"):
@@ -39,7 +41,7 @@ def process_alive(pid):
     try:
         stat = Path(f"/proc/{pid}/stat").read_text()
         return stat[stat.rfind(")") + 2] != "Z"
-    except FileNotFoundError:
+    except (FileNotFoundError, ProcessLookupError):
         return False
 
 
@@ -525,6 +527,108 @@ class HTTPTests(unittest.TestCase):
         status, _, _ = self.request("/api/services/dummy/stop", method="POST", payload={})
         self.assertEqual(status, 200)
         wait_for(lambda: not process_alive(pid), description="HTTP-stopped child")
+
+    def remote_headers(self, **extra):
+        remote.write_config(self.manager.state_dir, {
+            "origin": "https://desktop.example.ts.net:8443",
+            "owner_login": "owner@example.invalid", "before_login": True,
+        })
+        return {"Host": "desktop.example.ts.net:8443",
+                "Tailscale-User-Login": "owner@example.invalid", **extra}
+
+    def test_remote_page_and_logs_require_owner_identity(self):
+        headers = self.remote_headers()
+        for path in ("/", "/static/app.js", "/api/state", "/api/services/dummy/output"):
+            for identity in ("", "another-user@example.invalid"):
+                with self.subTest(path=path, identity=identity):
+                    status, body, _ = self.request(path, headers={**headers, "Tailscale-User-Login": identity})
+                    self.assertEqual(status, 403)
+                    self.assertNotIn(self.server.token, str(body))
+        status, html, _ = self.request("/", authenticate=False, headers=headers)
+        self.assertEqual(status, 200)
+        self.assertIn(self.server.token, html)
+        status, _, _ = self.request(headers=headers, authenticate=False)
+        self.assertEqual(status, 401)
+
+    def test_remote_owner_can_start_and_stop_with_same_origin_and_token(self):
+        headers = self.remote_headers(Origin="https://desktop.example.ts.net:8443")
+        status, _, _ = self.request("/api/services/dummy/start", method="POST", payload={}, headers=headers)
+        self.assertEqual(status, 200)
+        wait_for(lambda: self.manager.services["dummy"].snapshot()["ready"])
+        status, _, _ = self.request("/api/services/dummy/stop", method="POST", payload={}, headers=headers)
+        self.assertEqual(status, 200)
+
+    def test_remote_origin_and_host_cannot_be_bypassed_by_identity_headers(self):
+        headers = self.remote_headers()
+        for extra in (
+            {"Origin": "https://attacker.example"},
+            {"Host": "attacker.example", "X-Forwarded-Host": "desktop.example.ts.net:8443"},
+            {"Host": f"127.0.0.1:{self.server.server_port}", "Origin": "https://desktop.example.ts.net:8443"},
+            {"Sec-Fetch-Site": "cross-site"},
+        ):
+            with self.subTest(extra=extra):
+                status, _, _ = self.request("/api/services/dummy/start", method="POST", payload={}, headers={**headers, **extra})
+                self.assertEqual(status, 403)
+        self.assertFalse(self.marker.exists())
+
+    def test_remote_bookmark_navigation_is_allowed_but_cross_site_api_is_not(self):
+        headers = self.remote_headers(**{"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "navigate"})
+        self.assertEqual(self.request("/", headers=headers)[0], 200)
+        self.assertEqual(self.request("/api/state", headers=headers)[0], 403)
+
+    def test_remote_settings_are_off_until_explicit_setup(self):
+        status, body, _ = self.request("/api/settings")
+        self.assertEqual(status, 200)
+        self.assertFalse(body["configured"])
+        self.assertFalse(body["autostart"])
+        self.assertFalse(self.marker.exists())
+
+    def test_phone_chat_link_uses_private_hostname_instead_of_phone_localhost(self):
+        self.manager.services['webui'] = Service(ServiceSpec(
+            id='webui', name='Chat', description='No launch',
+            command=(sys.executable, '-c', 'pass'), url='http://127.0.0.1:8080',
+        ))
+        _, local, _ = self.request()
+        self.assertEqual(local['services'][-1]['url'], 'http://127.0.0.1:8080')
+        _, phone, _ = self.request(headers=self.remote_headers())
+        self.assertEqual(phone['services'][-1]['url'], 'https://desktop.example.ts.net')
+
+    def test_phone_cannot_accidentally_quit_its_only_controller(self):
+        status, _, _ = self.request('/api/shutdown', method='POST',
+                                    payload={'stop_services': True}, headers=self.remote_headers())
+        self.assertEqual(status, 403)
+        self.assertFalse(self.manager.shutdown_requested)
+        self.assertEqual(self.request(headers=self.remote_headers())[0], 200)
+
+
+class StartupTests(unittest.TestCase):
+    def test_installing_unit_does_not_enable_or_start_anything(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(remote, "run") as run:
+            path = remote.install_unit(home=directory, root=Path(directory) / "Project with spaces")
+            self.assertIn('control/server.py"', path.read_text())
+            self.assertNotIn('serve-nvfp4', path.read_text())
+            self.assertFalse((path.parent / "default.target.wants" / remote.UNIT).exists())
+            run.assert_not_called()
+
+    def test_autostart_toggle_never_starts_models_or_stops_current_session(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            remote.install_unit(home=directory)
+            remote.write_config(state, {"origin": "https://desktop.example.ts.net:8443", "owner_login": "owner", "before_login": True})
+            with patch.object(remote.Path, "home", return_value=Path(directory)), patch.object(remote, "run") as run, patch.object(remote, "startup_status", return_value={}):
+                remote.set_autostart(state, True)
+                self.assertEqual(run.call_args_list[-1].args[0], ["systemctl", "--user", "enable", remote.UNIT])
+                self.assertIn("enable-linger", run.call_args_list[0].args[0])
+                run.reset_mock()
+                remote.set_autostart(state, False)
+                run.assert_called_once_with(["systemctl", "--user", "disable", remote.UNIT])
+
+    def test_invalid_remote_configuration_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for origin in ("http://desktop.example.ts.net:8443", "https://public.example:8443", "https://desktop.example.ts.net:443", "https://owner@desktop.example.ts.net:8443"):
+                remote.write_config(directory, {"origin": origin, "owner_login": "owner"})
+                with self.assertRaises(ValueError):
+                    remote.read_config(directory)
 
 
 if __name__ == "__main__":

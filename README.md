@@ -42,8 +42,12 @@ bash scripts/start-control.sh
 
 The app at <http://127.0.0.1:8787> shows the model, chat UI, and private
 sharing as separate instances, with Start/Stop and optional terminal input.
-No hosting starts automatically. See [CONTROL.md](./CONTROL.md) for lifecycle
+Qwen and Chat start only when requested. See [CONTROL.md](./CONTROL.md) for lifecycle
 and launch details. Chat-client choice and latency tuning remain open.
+
+Optional [phone controls](./PHONE_CONTROL.md) use a separate private URL on
+port 8443 and start with the PC, before desktop login in the selected setup.
+The private control link is active. Qwen and Chat still start on demand.
 
 ## Docs
 
@@ -63,3 +67,5 @@ and launch details. Chat-client choice and latency tuning remain open.
   configuration differences, and controlled tuning candidates.
 - [`CONTROL.md`](./CONTROL.md) — single local control app, instance states,
   optional terminal input, and manual start/stop behavior.
+- [`PHONE_CONTROL.md`](./PHONE_CONTROL.md) — private iPhone controls,
+  owner authentication, and optional controller-only startup.

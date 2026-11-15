@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "9cb52c92-d394-4737-88e7-e98e102388d1",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/olleryden/Projects/pLLM/.archify/architecture-mcp-platform-20261108-215326/candidate.json",
+  "output": "/home/olleryden/Projects/pLLM/.archify/architecture-mcp-platform-20261108-215326/mcp-platform.html",
+  "specification": {
+    "sha256": "717d31c78a909fca9a79441136df58d2b0a30b371dcca557d7c148479309b4cc",
+    "bytes": 5208
+  },
+  "artifact": {
+    "sha256": "a5ec4c9eb8b6d4ca3c80cda631e11d0e459a5a34a7ec0eac23d66c7c46c5aa9d",
+    "bytes": 856155
+  }
+}

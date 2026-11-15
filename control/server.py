@@ -8,6 +8,7 @@ import codecs
 from collections import deque
 from dataclasses import dataclass, field
 import errno
+from email.header import decode_header, make_header
 import fcntl
 import html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,6 +29,11 @@ import threading
 import time
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import ProxyHandler, build_opener
+
+try:
+    from . import remote
+except ImportError:
+    import remote
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -568,6 +574,8 @@ class ControlHTTPServer(ThreadingHTTPServer):
             raise ValueError("The control app can only bind to 127.0.0.1.")
         self.manager = manager
         self.token = secrets.token_urlsafe(32)
+        self.startup_cache = None
+        self.startup_cache_at = 0.0
         self.web_dir = Path(web_dir) if web_dir else Path(__file__).resolve().parent / "web"
         super().__init__(address, ControlHandler)
 
@@ -592,6 +600,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("X-pLLM-Control", "1")
+        self.send_header("X-pLLM-Control-Remote", "1")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         self.end_headers()
@@ -607,12 +616,28 @@ class ControlHandler(BaseHTTPRequestHandler):
         port = self.server.server_port
         allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
         host = self.headers.get("Host", "")
+        self.remote_request = False
+        expected_origin = f"http://{host}"
         if host not in allowed_hosts:
-            raise APIError(403, "Only localhost requests are accepted.")
+            config = remote.read_config(self.server.manager.state_dir)
+            if not config or host != urlsplit(config["origin"]).netloc:
+                raise APIError(403, "Only localhost or the configured private control URL is accepted.")
+            try:
+                login = str(make_header(decode_header(self.headers.get("Tailscale-User-Login", ""))))
+            except (LookupError, UnicodeError, ValueError):
+                raise APIError(403, "Could not verify your Tailscale identity.")
+            if not secrets.compare_digest(login.encode(), config["owner_login"].encode()):
+                raise APIError(403, "Sign into Tailscale with the PC owner's account to use these controls.")
+            self.remote_request = True
+            expected_origin = config["origin"]
         origin = self.headers.get("Origin")
-        if origin and origin != f"http://{host}":
+        if origin and origin != expected_origin:
             raise APIError(403, "Cross-origin requests are not accepted.")
-        if self.headers.get("Sec-Fetch-Site", "") == "cross-site":
+        document_navigation = (
+            self.command == "GET" and urlsplit(self.path).path == "/" and
+            self.headers.get("Sec-Fetch-Mode") == "navigate"
+        )
+        if self.headers.get("Sec-Fetch-Site", "") == "cross-site" and not document_navigation:
             raise APIError(403, "Cross-site requests are not accepted.")
 
     def _authorize(self) -> None:
@@ -647,7 +672,21 @@ class ControlHandler(BaseHTTPRequestHandler):
             if parsed.path.startswith("/api/"):
                 self._authorize()
                 if parsed.path == "/api/state":
-                    self._json(200, self.server.manager.state())
+                    state = self.server.manager.state()
+                    if self.remote_request:
+                        config = remote.read_config(self.server.manager.state_dir)
+                        chat_url = "https://" + urlsplit(config["origin"]).hostname
+                        for service in state["services"]:
+                            if service["id"] == "webui":
+                                service["url"] = chat_url
+                    self._json(200, state)
+                    return
+                if parsed.path == "/api/settings":
+                    now = time.monotonic()
+                    if self.server.startup_cache is None or now - self.server.startup_cache_at > 3:
+                        self.server.startup_cache = remote.startup_status(self.server.manager.state_dir)
+                        self.server.startup_cache_at = now
+                    self._json(200, {**self.server.startup_cache, "remote": self.remote_request})
                     return
                 match = re.fullmatch(r"/api/services/([a-z0-9_-]+)/output", parsed.path)
                 if match:
@@ -675,7 +714,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         except APIError as exc:
             self.close_connection = True
             self._json(exc.status, {"error": str(exc)})
-        except (OSError, ValueError):
+        except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
             self.close_connection = True
             self._json(500, {"error": "Could not complete this request."})
 
@@ -684,7 +723,15 @@ class ControlHandler(BaseHTTPRequestHandler):
             self._authorize()
             body = self._body()
             path = urlsplit(self.path).path
+            if path == "/api/settings":
+                if type(body.get("autostart")) is not bool:
+                    raise APIError(400, "Automatic startup must be true or false.")
+                self._json(200, remote.set_autostart(self.server.manager.state_dir, body.get("autostart")))
+                self.server.startup_cache = None
+                return
             if path == "/api/shutdown":
+                if self.remote_request:
+                    raise APIError(403, "Stop individual instances from your phone. Quit the controller from the PC to keep remote controls available.")
                 stop_services = body.get("stop_services", False)
                 if type(stop_services) is not bool:
                     raise APIError(400, "stop_services must be true or false.")
@@ -709,7 +756,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         except APIError as exc:
             self.close_connection = True
             self._json(exc.status, {"error": str(exc)})
-        except (OSError, ValueError):
+        except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
             self.close_connection = True
             self._json(500, {"error": "Could not complete this request."})
 

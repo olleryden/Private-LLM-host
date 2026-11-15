@@ -28,3 +28,11 @@ Important to:
   supervises the existing launch scripts; keep hosting manual and terminal
   details optional. Closing its browser leaves hosting active; explicit quit
   can stop its managed instances. It is not a replacement chat client.
+* The owner subsequently requested phone control after switching the PC on.
+  Optional automatic startup of the lightweight controller is authorized;
+  Qwen and WebUI still start only on demand. Keep private control access
+  separate from chat sharing so stopping inference/chat never removes the
+  remote controls. Restrict remote commands to the owner's Tailscale identity.
+  The owner chose controller availability before desktop login; its optional
+  user service, lingering, and persistent private :8443 route are enabled
+  on this PC. New-install defaults still require explicit opt-in.
