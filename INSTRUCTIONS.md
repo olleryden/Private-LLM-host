@@ -51,3 +51,15 @@ Important to:
   abilities, new dependencies, behavior changes, security/privacy
   trade-offs, risks), and "Still open". Point to SETUP_LOG.md for evidence
   rather than repeating it.
+* Before every commit, check whether the system architecture changed:
+  services, ports, request paths, trust boundaries, or lifecycle. If it did:
+  1. Regenerate the Archify diagram in a new
+     `.archify/architecture-pllm-<timestamp>/` folder, pinned to `HEAD`.
+  2. Re-export `.archify/pllm-architecture.svg` with
+     `scripts/export-diagram-svg.mjs`.
+  3. Update the README "Architecture" section: the figure, the
+     interactive link, and the one-line service table.
+
+  Hooks in `.claude/settings.json` run `scripts/arch-diagram-check.py`.
+  They list architecture-relevant changes when a prompt mentions a commit,
+  and ask before a `git commit` whose diagram was not refreshed.

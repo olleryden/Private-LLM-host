@@ -61,6 +61,24 @@ Personal or sensitive context, such as account IDs, network details, and
 security findings, belongs in [`personal/`](./personal/README.md). Only that
 folder's README is pushed.
 
+## Architecture
+
+![pLLM architecture: phone and local clients reach Qwen on vLLM through Tailscale Serve, Open WebUI, and Kong AI Gateway; pLLM Control starts services; Kong syncs config with Konnect](./.archify/pllm-architecture.svg)
+
+Diagram as of 2026-11-16. The interactive version is
+[`.archify/architecture-pllm-20261116-010025/pllm-architecture.html`](./.archify/architecture-pllm-20261116-010025/pllm-architecture.html);
+open it locally in a browser.
+
+| Service | Use |
+|---|---|
+| vLLM · Qwen3.8-27B (`127.0.0.1:8000`) | Runs the model and serves an OpenAI-compatible API protected by a key |
+| Open WebUI (`127.0.0.1:8080`) | Chat app with login; stores chats and accounts in `.data/open-webui` |
+| Kong AI Gateway (`127.0.0.1:8100`) | Gateway in Docker for local API clients; adds the vLLM key |
+| Kong Konnect (hosted, EU) | Holds Kong's configuration and usage stats; never sees prompts |
+| pLLM Control (`127.0.0.1:8787`) | Dashboard that starts and stops Qwen, Chat, and phone sharing |
+| Tailscale Serve `:443` | Private HTTPS route from your devices to Open WebUI; started manually |
+| Tailscale Serve `:8443` | Private HTTPS route to pLLM Control; only the owner's Tailscale login gets in |
+
 ## Docs
 
 - [`PLAN.md`](./PLAN.md) — phased roadmap and current status. Start here for
@@ -92,6 +110,35 @@ Newest first. Dates are when the work was done, which can be earlier than
 the commit. Each entry has three parts: what changed, what it means for
 using and running pLLM, and what is still open. SETUP_LOG.md has the
 commands and evidence.
+
+### 2026-11-16 — Architecture diagram and commit-time check
+
+**What changed**
+
+- The README has an [Architecture](#architecture) section: a refreshed
+  Archify diagram (now including Kong and Konnect) and a one-line table
+  of services.
+- Claude Code hooks (`.claude/settings.json`) check, before each commit,
+  whether the architecture changed since the diagram was last updated.
+  They run `scripts/arch-diagram-check.py`; `scripts/export-diagram-svg.mjs`
+  re-exports the README figure.
+
+**What it means**
+
+- **The current setup is visible at a glance.** One picture shows how your
+  phone, the PC's services, and Konnect connect, without reading
+  ARCHITECTURE.md.
+- **The diagram is less likely to go stale.** When your message mentions a
+  commit, Claude is told which architecture-relevant files changed since
+  the last diagram update. Before Claude itself runs `git commit` with
+  such changes and no refreshed diagram, you are asked first; it is never
+  a hard block.
+- **The check only covers commits made through Claude.** Commits you make
+  yourself in a terminal are not checked. Ask for a commit message first,
+  as usual, to get the check.
+
+**Still open:** an optional git pre-commit warning for commits made outside
+Claude. The hooks are active; the prompt check fired on 2026-11-16.
 
 ### 2026-11-16 — Kong AI Gateway and personal context
 
@@ -177,8 +224,10 @@ schedules these as the next iteration.
 - **A small always-on process.** The lightweight controller now runs from
   boot. Qwen and Chat still use no GPU until you start them.
 - **Your Tailscale login is the only lock.** There is no extra password, so
-  anyone with a device signed in to your Tailscale account can start, stop,
-  and type into these services. Securing that account matters most.
+  anyone with a device signed in to your Tailscale account can do
+  everything except Quit. That includes starting the Workspace terminal,
+  which is a real shell on the PC running as you. Securing that account
+  matters most; restricting the shell to the desktop is an option.
 - **You can't lock yourself out.** Quit is blocked from the phone, so the
   remote controls can't be stopped by accident.
 - **Not fully tested yet.** Real iPhone, cellular, and reboot tests are

@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "pLLM — Private LLM Host",
+    "output": ".archify/architecture-pllm-20261116-010025/pllm-architecture.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "git@github.com:olleryden/Private-LLM-host.git",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "c3e1e9bc40f41dc876dbef8a8d9bea652d7ef69f"
+    }
+  },
+  "components": [
+    { "id": "webui-data", "type": "database", "label": "WebUI data", "sublabel": ".data/open-webui (SQLite)", "pos": [560, 40], "size": [150, 64],
+      "sources": [{ "path": "scripts/serve-webui.sh", "line": 32, "end_line": 32, "label": "DATA_DIR" }] },
+    { "id": "weights", "type": "database", "label": "Model weights", "sublabel": "models/ · NVFP4 + FP8", "pos": [820, 40], "size": [150, 64],
+      "sources": [{ "path": "scripts/serve-nvfp4.sh", "line": 40, "end_line": 48, "label": "checkpoint path" }] },
+    { "id": "clients", "type": "frontend", "label": "Local API clients", "sublabel": "scripts · coding tools", "pos": [1090, 40], "size": [150, 64],
+      "sources": [{ "path": "KONG.md", "line": 59, "end_line": 70, "label": "OpenAI-compatible use" }] },
+
+    { "id": "serve-chat", "type": "security", "label": "Tailscale Serve", "sublabel": "HTTPS :443 · manual", "pos": [300, 190], "size": [150, 64],
+      "sources": [{ "path": "control/server.py", "line": 553, "end_line": 559, "label": "sharing instance" }] },
+    { "id": "webui", "type": "frontend", "label": "Open WebUI", "sublabel": "127.0.0.1:8080 · login", "pos": [560, 190], "size": [150, 64],
+      "sources": [{ "path": "scripts/serve-webui.sh", "line": 31, "end_line": 54, "label": "vLLM URL + key, auth" }] },
+    { "id": "vllm", "type": "backend", "label": "vLLM · Qwen3.8-27B", "sublabel": "127.0.0.1:8000 · API key", "pos": [820, 190], "size": [150, 64],
+      "sources": [{ "path": "scripts/serve-nvfp4.sh", "line": 44, "end_line": 61, "label": "loopback serve" }] },
+    { "id": "kong", "type": "security", "label": "Kong AI Gateway", "sublabel": "Docker · 127.0.0.1:8100", "pos": [1090, 190], "size": [150, 64],
+      "sources": [
+        { "path": "KONG.md", "line": 29, "end_line": 35, "label": "current state" },
+        { "path": "SETUP_LOG.md", "line": 982, "end_line": 995, "label": "container settings" }
+      ] },
+
+    { "id": "phone", "type": "external", "label": "Phone", "sublabel": "iPhone + Tailscale", "pos": [40, 340], "size": [150, 64] },
+    { "id": "control", "type": "backend", "label": "pLLM Control", "sublabel": "127.0.0.1:8787 · launcher, web UI, API · token + owner checks · starts/stops on request", "pos": [300, 340], "size": [670, 64],
+      "sources": [
+        { "path": "control/server.py", "line": 541, "end_line": 565, "label": "managed instances" },
+        { "path": "control/server.py", "line": 615, "end_line": 647, "label": "origin, owner, token checks" }
+      ] },
+
+    { "id": "serve-control", "type": "security", "label": "Tailscale Serve", "sublabel": "HTTPS :8443 · persistent", "pos": [300, 490], "size": [150, 64],
+      "sources": [{ "path": "control/remote.py", "line": 149, "end_line": 151, "label": "serve --bg :8443" }] },
+
+    { "id": "desktop", "type": "external", "label": "Desktop user", "sublabel": "app menu / browser", "pos": [560, 640], "size": [150, 64] },
+    { "id": "konnect", "type": "cloud", "label": "Kong Konnect", "sublabel": "hosted control plane · EU", "pos": [1090, 640], "size": [150, 64],
+      "sources": [{ "path": "KONG.md", "line": 5, "end_line": 11, "label": "config + analytics only" }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Home PC · Ubuntu · RTX 5090", "wraps": ["webui-data", "weights", "clients", "serve-chat", "webui", "vllm", "kong", "control", "serve-control"] }
+  ],
+  "connections": [
+    { "id": "phone-chat", "from": "phone", "to": "serve-chat", "label": "HTTPS (tailnet)", "variant": "emphasis" },
+    { "id": "serve-proxy", "from": "serve-chat", "to": "webui", "label": "proxy :8080", "variant": "emphasis" },
+    { "id": "webui-model", "from": "webui", "to": "vllm", "label": "/v1 + API key", "variant": "emphasis" },
+    { "id": "webui-store", "from": "webui", "to": "webui-data", "label": "chats, accounts" },
+    { "id": "vllm-load", "from": "vllm", "to": "weights", "label": "load" },
+
+    { "id": "clients-kong", "from": "clients", "to": "kong", "label": "/v1, no key yet" },
+    { "id": "kong-model", "from": "kong", "to": "vllm", "label": "adds vLLM key" },
+    { "id": "kong-konnect", "from": "kong", "to": "konnect", "label": "config sync, stats (outbound)", "variant": "dashed" },
+
+    { "id": "start-serve", "from": "control", "to": "serve-chat", "label": "starts (sudo)" },
+    { "id": "start-webui", "from": "control", "to": "webui", "label": "starts/stops" },
+    { "id": "start-model", "from": "control", "to": "vllm", "label": "starts/stops" },
+
+    { "id": "phone-controls", "from": "phone", "to": "serve-control", "label": "controls" },
+    { "id": "owner-check", "from": "serve-control", "to": "control", "label": "owner identity", "variant": "security" },
+    { "id": "desktop-open", "from": "desktop", "to": "control", "label": "opens app" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Chat path", "items": [
+      "Phone reaches Open WebUI only through private Tailscale Serve; no public URL",
+      "Open WebUI calls vLLM directly with the key from .secrets/; one active request"
+    ] },
+    { "dot": "violet", "title": "Kong path", "items": [
+      "Local clients call Kong; Kong adds the vLLM key from its container env",
+      "Konnect holds config and usage stats only; prompts stay on the PC",
+      "Planned: route Open WebUI through Kong; add per-client keys"
+    ] },
+    { "dot": "emerald", "title": "Lifecycle", "items": [
+      "Qwen, Chat and Sharing start only on request",
+      "The controller can start at boot (opt-in user service)",
+      "Kong is a Docker container outside pLLM Control"
+    ] },
+    { "dot": "slate", "title": "Not built yet", "items": [
+      "Retrieval, memory, web search and code execution are off",
+      "No coding client, tool runner or backup procedure"
+    ] }
+  ]
+}

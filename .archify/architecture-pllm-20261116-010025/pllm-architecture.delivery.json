@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "001960c9-e5a6-4bcb-955f-e66cc6629463",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/olleryden/Projects/pLLM/.archify/architecture-pllm-20261116-010025/candidate.json",
+  "output": "/home/olleryden/Projects/pLLM/.archify/architecture-pllm-20261116-010025/pllm-architecture.html",
+  "specification": {
+    "sha256": "4ae9f541443f58722d8b8a79aa0f9b6739c9d753c09ce08a812a292b4b55ac64",
+    "bytes": 6239
+  },
+  "artifact": {
+    "sha256": "4da9570065d7ee5fe3aabcdc2d6a45b8d9fec35a463f622bf6ae5b3ac42f2a55",
+    "bytes": 858052
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$CLAUDE_PROJECT_DIR/scripts/arch-diagram-check.py\" prompt",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "command": "/usr/bin/python3 \"$CLAUDE_PROJECT_DIR/scripts/arch-diagram-check.py\" commit",
+            "timeout": 15,
+            "statusMessage": "Checking architecture diagram"
+          }
+        ]
+      }
+    ]
+  }
+}
