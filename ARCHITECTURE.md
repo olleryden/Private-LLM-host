@@ -109,7 +109,7 @@ identifies the Open WebUI user, not the device. Per-device identity in Kong
 requires devices to call Kong directly with their own consumer keys.
 Anyone who gets a device onto the owner's tailnet faces Open WebUI's
 password for chat. Other tailnet-reachable services need the same review
-(TASKS.md → Security hardening).
+(Vikunja, pLLM board → Security hardening card).
 
 ## What Open WebUI adds around the model
 

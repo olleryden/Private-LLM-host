@@ -6,9 +6,8 @@ SSD: 4TB PCIE-5 nvme
 
 The model I am first wanting to use is the new Qwen 3.8 27B model.
 Important to:
-*  Update in the PLAN.md file whenever progress is made, new tasks or subtasks appear. Both to track where we are in the project, but mainly to be able to switch between chats and still receive the correct context (and also decide on which part of the system to work on next).
+* Track the plan, progress, and tasks in Vikunja (self-hosted on this PC), project Personal Assistant → pLLM, through the Vikunja MCP server. Update it whenever progress is made or new tasks or subtasks appear. Both to track where we are in the project, but mainly to be able to switch between chats and still receive the correct context (and also decide on which part of the system to work on next). One card per unit of work, with its steps as a checklist; related cards share a title prefix such as "Kong:". PLAN.md and TASKS.md only point to Vikunja since 2026-11-17; do not track work in them again.
 * Keep the design and architecture scribbled down in the ARCHITECTURE.md file. This is so we can visualize the design later and sketch it up.
-* Update and keep track in the TASKS.md file.
 * Keep SETUP_LOG.md updated with exact setup commands, observed results,
   dependency/model revisions, errors, and fixes. Distinguish owner-confirmed
   desktop results from proposed commands. The owner wants a guided,

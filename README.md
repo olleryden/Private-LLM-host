@@ -81,10 +81,10 @@ open it locally in a browser.
 
 ## Docs
 
-- [`PLAN.md`](./PLAN.md) — phased roadmap and current status. Start here for
-  "where are we and what's next."
-- [`TASKS.md`](./TASKS.md) — granular, ordered task checklist for the
-  current phase.
+- **Planning and tasks:** the self-hosted Vikunja tracker on this PC,
+  project Personal Assistant → pLLM. Start there for "where are we and
+  what's next." [`PLAN.md`](./PLAN.md) and [`TASKS.md`](./TASKS.md) only
+  point there now.
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — current components, request flow,
   how WebUI wraps the model, and where projects/history/memories live.
 - [`SETUP_LOG.md`](./SETUP_LOG.md) — commands, verified results, pending
@@ -110,6 +110,33 @@ Newest first. Dates are when the work was done, which can be earlier than
 the commit. Each entry has three parts: what changed, what it means for
 using and running pLLM, and what is still open. SETUP_LOG.md has the
 commands and evidence.
+
+### 2026-11-17 — Planning moved to Vikunja
+
+**What changed**
+
+- The plan and task checklist moved from PLAN.md and TASKS.md to the
+  self-hosted Vikunja tracker, project Personal Assistant → pLLM. Both
+  files now only point there; their last Markdown versions are in Git
+  history.
+- pLLM is now one sub-project of Personal Assistant. The others are
+  Memory bank, a harness-agnostic memory that takes over roadmap phase 6,
+  and Docker management, an overview of the container deployments.
+
+**What it means**
+
+- **One place for status.** Open work, priorities, and done milestones
+  are cards on the pLLM board, each with its steps as a checklist.
+  Assistants read and update them through Vikunja's MCP server instead of
+  editing Markdown.
+- **Planning now depends on Vikunja.** It runs in Docker on this PC, and
+  the plan exists only in its database until backups are set up. That is
+  the top card in Docker management.
+- **Grouping uses title prefixes.** Related cards share a prefix such as
+  "Kong:", because the current Vikunja MCP token cannot attach labels or
+  link tasks.
+
+**Still open:** everything that was open in TASKS.md, now on the board.
 
 ### 2026-11-16 — Architecture diagram and commit-time check
 

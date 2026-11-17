@@ -65,7 +65,8 @@ The app identifies Qwen by any listener on `127.0.0.1:8000`. On 2026-11-15
 a Kong container held that port and was shown as an external Qwen, while
 vLLM could not start. Kong now uses `127.0.0.1:8100` (KONG.md). The app does
 not show or manage Kong; making detection more robust and adding Kong
-status are planned (PLAN.md, next iteration).
+status are planned (Vikunja, pLLM board: "Kong: pLLM Control identifies
+Qwen robustly and shows Kong").
 
 ## Optional terminal
 
